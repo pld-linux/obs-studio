@@ -1,7 +1,7 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Name:		obs-studio
 Version:	19.0.3
-Release:	1
+Release:	2
 License:	GPL v2
 Group:		Applications
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
@@ -64,6 +64,7 @@ export OBS_MULTIARCH_SUFFIX=x32
 %endif
 
 %cmake \
+	-DOBS_VERSION_OVERRIDE=%{version} \
 		../
 %{__make}
 
