@@ -12,6 +12,7 @@ BuildRequires:	Qt5Core-devel
 BuildRequires:	Qt5Gui-devel
 BuildRequires:	cmake
 BuildRequires:	curl-devel
+BuildRequires:	fdk-aac-devel
 BuildRequires:	ffmpeg-devel
 BuildRequires:	fontconfig-devel
 BuildRequires:	freetype-devel
@@ -22,6 +23,7 @@ BuildRequires:	pulseaudio-devel
 BuildRequires:	qt5-build
 BuildRequires:	qt5-qmake
 BuildRequires:	udev-devel
+BuildRequires:	vlc-devel
 BuildRequires:	xorg-lib-libXcomposite-devel
 BuildRequires:	xorg-lib-libXinerama-devel
 BuildRequires:	xorg-lib-libXrandr-devel
@@ -129,6 +131,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/obs/obs-plugins/obs-filters/*.effect
 %{_datadir}/obs/obs-plugins/obs-filters/LUTs
 
+%dir %{_datadir}/obs/obs-plugins/obs-libfdk
+%{_datadir}/obs/obs-plugins/obs-libfdk/locale
+
 %dir %{_datadir}/obs/obs-plugins/obs-outputs
 %{_datadir}/obs/obs-plugins/obs-outputs/locale
 
@@ -148,6 +153,9 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_datadir}/obs/obs-plugins/text-freetype2
 %{_datadir}/obs/obs-plugins/text-freetype2/locale
 %{_datadir}/obs/obs-plugins/text-freetype2/*.effect
+
+%dir %{_datadir}/obs/obs-plugins/vlc-video
+%{_datadir}/obs/obs-plugins/vlc-video/locale
 
 %files devel
 %defattr(644,root,root,755)
