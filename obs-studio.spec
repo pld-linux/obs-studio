@@ -53,9 +53,14 @@ Pliki nagłówkowe biblioteki %{name}.
 %build
 install -d build
 cd build
-%ifarch x86_64
+
+%if "%{_lib}" == "lib64"
 export OBS_MULTIARCH_SUFFIX=64
 %endif
+%if "%{_lib}" == "libx32"
+export OBS_MULTIARCH_SUFFIX=x32
+%endif
+
 %cmake \
 		../
 %{__make}
