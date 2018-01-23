@@ -1,11 +1,11 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Name:		obs-studio
-Version:	19.0.3
-Release:	2
+Version:	21.0.1
+Release:	1
 License:	GPL v2
 Group:		Applications
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	c0e2b4f7a18a9a4e1e15ab4c71dc95e7
+# Source0-md5:	2dbd9d5832d070a349cd97f495d788ac
 Patch0:		libobs_link.patch
 URL:		https://obsproject.com/
 BuildRequires:	Qt5Core-devel
@@ -19,9 +19,12 @@ BuildRequires:	freetype-devel
 BuildRequires:	jack-audio-connection-kit-devel
 BuildRequires:	jansson-devel
 BuildRequires:	libv4l-devel
+BuildRequires:	luajit-devel
 BuildRequires:	pulseaudio-devel
+BuildRequires:	python3-devel
 BuildRequires:	qt5-build
 BuildRequires:	qt5-qmake
+BuildRequires:	swig-python
 BuildRequires:	udev-devel
 BuildRequires:	vlc-devel
 BuildRequires:	xorg-lib-libXcomposite-devel
@@ -89,8 +92,13 @@ rm -rf $RPM_BUILD_ROOT
 %ghost %{_libdir}/libobs-opengl.so.0
 %attr(755,root,root) %{_libdir}/libobs.so.0
 %attr(755,root,root) %{_libdir}/libobsglad.so.0
+%attr(755,root,root) %{_libdir}/libobs-scripting.so
 %dir %{_libdir}/obs-plugins
 %attr(755,root,root) %{_libdir}/obs-plugins/*.so
+%dir %{_libdir}/obs-scripting
+%attr(755,root,root) %{_libdir}/obs-scripting/obslua.so
+%attr(755,root,root) %{_libdir}/obs-scripting/_obspython.so
+%attr(755,root,root) %{_libdir}/obs-scripting/obspython.py
 %{_desktopdir}/obs.desktop
 %{_iconsdir}/*/*/apps/obs.png
 
@@ -101,6 +109,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %dir %{_datadir}/obs/obs-plugins/frontend-tools
 %{_datadir}/obs/obs-plugins/frontend-tools/locale
+%dir %{_datadir}/obs/obs-plugins/frontend-tools/scripts
+%{_datadir}/obs/obs-plugins/frontend-tools/scripts/*.lua
+%{_datadir}/obs/obs-plugins/frontend-tools/scripts/*.py
+%{_datadir}/obs/obs-plugins/frontend-tools/scripts/clock-source
 
 %dir %{_datadir}/obs/obs-plugins/image-source
 %{_datadir}/obs/obs-plugins/image-source/locale
