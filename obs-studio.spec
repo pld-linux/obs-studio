@@ -19,7 +19,9 @@ BuildRequires:	freetype-devel
 BuildRequires:	jack-audio-connection-kit-devel
 BuildRequires:	jansson-devel
 BuildRequires:	libv4l-devel
+%ifnarch x32
 BuildRequires:	luajit-devel
+%endif
 BuildRequires:	pulseaudio-devel
 BuildRequires:	python3-devel
 BuildRequires:	qt5-build
@@ -96,7 +98,9 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_libdir}/obs-plugins
 %attr(755,root,root) %{_libdir}/obs-plugins/*.so
 %dir %{_libdir}/obs-scripting
+%ifnarch x32
 %attr(755,root,root) %{_libdir}/obs-scripting/obslua.so
+%endif
 %attr(755,root,root) %{_libdir}/obs-scripting/_obspython.so
 %attr(755,root,root) %{_libdir}/obs-scripting/obspython.py
 %{_desktopdir}/obs.desktop
