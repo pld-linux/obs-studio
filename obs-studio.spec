@@ -1,7 +1,7 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Name:		obs-studio
 Version:	21.0.1
-Release:	2
+Release:	3
 License:	GPL v2
 Group:		Applications
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
