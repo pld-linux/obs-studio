@@ -1,12 +1,13 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Name:		obs-studio
 Version:	21.0.1
-Release:	3
+Release:	4
 License:	GPL v2
 Group:		Applications
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
 # Source0-md5:	2dbd9d5832d070a349cd97f495d788ac
 Patch0:		libobs_link.patch
+Patch1:		%{name}-build.patch
 URL:		https://obsproject.com/
 BuildRequires:	Qt5Core-devel
 BuildRequires:	Qt5Gui-devel
@@ -56,6 +57,7 @@ Pliki nagłówkowe biblioteki %{name}.
 %setup -q
 
 %patch0 -p1
+%patch1 -p1
 
 %build
 install -d build
