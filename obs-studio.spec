@@ -1,16 +1,14 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	23.2.1
-Release:	3
+Version:	26.1.1
+Release:	1
 License:	GPL v2+
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	62075963ae4e08a5b0078ec0e4f411a6
+# Source0-md5:	a883b1d7c691e518cdd88c3b0072184b
 Patch0:		libobs_link.patch
-Patch1:		%{name}-build.patch
-Patch2:		%{name}-pc.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -79,8 +77,6 @@ Pliki nagłówkowe OBS Studio.
 %prep
 %setup -q
 %patch0 -p1
-%patch1 -p1
-%patch2 -p1
 
 %build
 install -d build
@@ -88,6 +84,7 @@ cd build
 
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 %cmake .. \
+	-DUNIX_STRUCTURE=1 \
 	-DOBS_VERSION_OVERRIDE=%{version}
 
 %{__make}
@@ -102,7 +99,7 @@ builddir="$(pwd)"
 
 cd $RPM_BUILD_ROOT
 reldatadir="$(echo %{_datadir} | sed -e 's,^/,,')"
-for f in $reldatadir/obs/obs-studio/locale/??*-??.ini $reldatadir/obs/obs-plugins/*/locale/??*-??.ini ; do
+for f in $reldatadir/obs/obs-studio/locale/??*-??*.ini $reldatadir/obs/obs-plugins/*/locale/??*-??*.ini ; do
 	locale="$(basename "$f" .ini | tr - _)"
 	case "$locale" in
 	  en_US)
@@ -120,7 +117,7 @@ for f in $reldatadir/obs/obs-studio/locale/??*-??.ini $reldatadir/obs/obs-plugin
 done > "$builddir/%{name}.lang"
 
 # dir guard
-%{__rm} $RPM_BUILD_ROOT%{_datadir}/obs/obs-plugins/decklink-ouput-ui/.keepme
+%{__rm} $RPM_BUILD_ROOT%{_datadir}/obs/obs-plugins/{decklink-captions,decklink-ouput-ui}/.keepme
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -142,6 +139,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/libobs-scripting.so
 
 %dir %{_libdir}/obs-plugins
+%attr(755,root,root) %{_libdir}/obs-plugins/decklink-captions.so
 %attr(755,root,root) %{_libdir}/obs-plugins/decklink-ouput-ui.so
 %attr(755,root,root) %{_libdir}/obs-plugins/frontend-tools.so
 %attr(755,root,root) %{_libdir}/obs-plugins/image-source.so
