@@ -1,13 +1,15 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	26.1.1
-Release:	2
+Version:	27.0.0
+Release:	1
 License:	GPL v2+
+%define		obs_vst_gitref	aaa7b7fa32c40b37f59e7d3d194672115451f198
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	a883b1d7c691e518cdd88c3b0072184b
+# Source0-md5:	cd3da7551dc4a007c6b01145d037b910
+Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20210530.tar.gz
 Patch0:		libobs_link.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
@@ -36,6 +38,7 @@ BuildRequires:	luajit-devel
 BuildRequires:	libstdc++-devel >= 6:4.7
 BuildRequires:	libx264-devel
 BuildRequires:	mbedtls-devel
+BuildRequires:	pipewire-devel
 BuildRequires:	pkgconfig
 BuildRequires:	pulseaudio-devel
 BuildRequires:	python3-devel >= 1:3.2
@@ -46,9 +49,6 @@ BuildRequires:	swig-python >= 2
 BuildRequires:	udev-devel
 BuildRequires:	vlc-devel
 BuildRequires:	xorg-lib-libX11-devel
-#BuildRequires:	xorg-lib-libXcomposite-devel
-#BuildRequires:	xorg-lib-libXinerama-devel
-#BuildRequires:	xorg-lib-libXrandr-devel
 BuildRequires:	zlib-devel
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
@@ -75,8 +75,10 @@ Header files for OBS Studio.
 Pliki nagłówkowe OBS Studio.
 
 %prep
-%setup -q
+%setup -q -a1
 %patch0 -p1
+%{__mv} obs-vst-%{obs_vst_gitref} obs-vst
+%{__mv} obs-vst plugins
 
 %build
 install -d build
@@ -85,7 +87,8 @@ cd build
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 %cmake .. \
 	-DUNIX_STRUCTURE=1 \
-	-DOBS_VERSION_OVERRIDE=%{version}
+	-DOBS_VERSION_OVERRIDE=%{version} \
+	-DBUILD_BROWSER=OFF
 
 %{__make}
 
@@ -154,6 +157,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-libfdk.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
+%attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-x264.so
 %attr(755,root,root) %{_libdir}/obs-plugins/rtmp-services.so
 %attr(755,root,root) %{_libdir}/obs-plugins/text-freetype2.so
