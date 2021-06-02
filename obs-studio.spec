@@ -10,6 +10,7 @@ Group:		X11/Applications/Multimedia
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
 # Source0-md5:	cd3da7551dc4a007c6b01145d037b910
 Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20210530.tar.gz
+# Source1-md5:	31de8e44547fcbba83236b59c9a03ff7
 Patch0:		libobs_link.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
