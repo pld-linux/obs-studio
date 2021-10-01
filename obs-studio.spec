@@ -1,17 +1,16 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	27.0.1
+Version:	27.1.1
 Release:	1
 License:	GPL v2+
 %define		obs_vst_gitref	aaa7b7fa32c40b37f59e7d3d194672115451f198
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	48b51f558858f512928efda0f3aee1a1
+# Source0-md5:	92620f97a449b5e30436420468854893
 Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20210530.tar.gz
 # Source1-md5:	31de8e44547fcbba83236b59c9a03ff7
-Patch0:		libobs_link.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -77,7 +76,6 @@ Pliki nagłówkowe OBS Studio.
 
 %prep
 %setup -q -a1
-%patch0 -p1
 %{__mv} obs-vst-%{obs_vst_gitref} obs-vst
 %{__mv} obs-vst plugins
 
