@@ -1,16 +1,16 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	27.1.3
+Version:	27.2.0
 Release:	1
 License:	GPL v2+
-%define		obs_vst_gitref	aaa7b7fa32c40b37f59e7d3d194672115451f198
+%define		obs_vst_gitref	8ad3f64e702ac4f1799b209a511620eb1d096a01
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	fc9df69561e3f1b140f7234b440a02bf
-Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20210530.tar.gz
-# Source1-md5:	31de8e44547fcbba83236b59c9a03ff7
+# Source0-md5:	2b57d1a86dee33786f36b0effa153083
+Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20220206.tar.gz
+# Source1-md5:	7554389796e176c6bc73d453cf883703
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -170,7 +170,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %{_datadir}/metainfo/com.obsproject.Studio.appdata.xml
 %{_desktopdir}/com.obsproject.Studio.desktop
-%{_iconsdir}/hicolor/256x256/apps/com.obsproject.Studio.png
+%{_iconsdir}/hicolor/*x*/apps/com.obsproject.Studio.png
+%{_iconsdir}/hicolor/scalable/apps/com.obsproject.Studio.svg
 
 %dir %{_datadir}/obs
 %{_datadir}/obs/libobs
