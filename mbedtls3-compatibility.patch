@@ -1,0 +1,326 @@
+From 179ad9e67b74bb8ea8d2c655ce12071c2dd67e81 Mon Sep 17 00:00:00 2001
+From: tytan652 <tytan652@tytanium.xyz>
+Date: Tue, 28 Sep 2021 18:26:23 +0200
+Subject: [PATCH]  librtmp: Add mbedtls 3 compatibility
+
+Since Mbed TLS 3 doesn't support RC4 algorithm,
+encrypted RTMP is disabled if OBS is built with
+the version 3 or later of Mbed TLS.
+---
+ plugins/obs-outputs/librtmp/handshake.h | 54 ++++++++++++++++++++++++-
+ plugins/obs-outputs/librtmp/rtmp.c      | 12 ++++--
+ plugins/obs-outputs/librtmp/rtmp.h      |  2 +
+ 3 files changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/plugins/obs-outputs/librtmp/handshake.h b/plugins/obs-outputs/librtmp/handshake.h
+index 1827867850a7..7f7825592aad 100644
+--- a/plugins/obs-outputs/librtmp/handshake.h
++++ b/plugins/obs-outputs/librtmp/handshake.h
+@@ -26,7 +26,9 @@
+ 
+ #if defined(USE_MBEDTLS)
+ #include <mbedtls/md.h>
++#if MBEDTLS_VERSION_MAJOR < 3
+ #include <mbedtls/arc4.h>
++#endif
+ #ifndef SHA256_DIGEST_LENGTH
+ #define SHA256_DIGEST_LENGTH	32
+ #endif
+@@ -38,12 +40,14 @@ typedef mbedtls_md_context_t *HMAC_CTX;
+ #define HMAC_finish(ctx, dig)		mbedtls_md_hmac_finish(ctx, dig)
+ #define HMAC_close(ctx)			mbedtls_md_free(ctx); free(ctx); ctx = NULL
+ 
++#if MBEDTLS_VERSION_MAJOR < 3
+ typedef mbedtls_arc4_context*	RC4_handle;
+ #define RC4_alloc(h)	*h = malloc(sizeof(mbedtls_arc4_context)); mbedtls_arc4_init(*h)
+ #define RC4_setkey(h,l,k)	mbedtls_arc4_setup(h,k,l)
+ #define RC4_encrypt(h,l,d)	mbedtls_arc4_crypt(h,l,(unsigned char *)d,(unsigned char *)d)
+ #define RC4_encrypt2(h,l,s,d)	mbedtls_arc4_crypt(h,l,(unsigned char *)s,(unsigned char *)d)
+ #define RC4_free(h)	mbedtls_arc4_free(h); free(h); h = NULL
++#endif
+ 
+ #elif defined(USE_POLARSSL)
+ #include <polarssl/sha2.h>
+@@ -104,7 +108,9 @@ typedef RC4_KEY *	RC4_handle;
+ 
+ #define FP10
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+ #include "dh.h"
++#endif
+ 
+ static const uint8_t GenuineFMSKey[] =
+ {
+@@ -133,6 +139,7 @@ static const uint8_t GenuineFPKey[] =
+     0x31, 0xAE
+ };				/* 62 */
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+ static void InitRC4Encryption
+ (uint8_t * secretKey,
+  uint8_t * pubKeyIn,
+@@ -173,9 +180,11 @@ static void InitRC4Encryption
+ 
+     RC4_setkey(*rc4keyIn, 16, digest);
+ }
++#endif
+ 
+ typedef unsigned int (getoff)(uint8_t *buf, unsigned int len);
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+ static unsigned int
+ GetDHOffset2(uint8_t *handshake, unsigned int len)
+ {
+@@ -206,6 +215,7 @@ GetDHOffset2(uint8_t *handshake, unsigned int len)
+     }
+     return res;
+ }
++#endif
+ 
+ static unsigned int
+ GetDigestOffset2(uint8_t *handshake, unsigned int len)
+@@ -238,6 +248,7 @@ GetDigestOffset2(uint8_t *handshake, unsigned int len)
+     return res;
+ }
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+ static unsigned int
+ GetDHOffset1(uint8_t *handshake, unsigned int len)
+ {
+@@ -268,6 +279,7 @@ GetDHOffset1(uint8_t *handshake, unsigned int len)
+ 
+     return res;
+ }
++#endif
+ 
+ static unsigned int
+ GetDigestOffset1(uint8_t *handshake, unsigned int len)
+@@ -302,7 +314,9 @@ GetDigestOffset1(uint8_t *handshake, unsigned int len)
+ }
+ 
+ static getoff *digoff[] = {GetDigestOffset1, GetDigestOffset2};
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+ static getoff *dhoff[] = {GetDHOffset1, GetDHOffset2};
++#endif
+ 
+ static void
+ HMACsha256(const uint8_t *message, size_t messageLen, const uint8_t *key,
+@@ -805,12 +819,16 @@ static int
+ HandShake(RTMP * r, int FP9HandShake)
+ {
+     int i, offalg = 0;
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+     int dhposClient = 0;
++#endif
+     int digestPosClient = 0;
+     int encrypted = r->Link.protocol & RTMP_FEATURE_ENC;
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+     RC4_handle keyIn = 0;
+     RC4_handle keyOut = 0;
++#endif
+ 
+ #ifndef _DEBUG
+     int32_t *ip;
+@@ -820,15 +838,31 @@ HandShake(RTMP * r, int FP9HandShake)
+     uint8_t clientbuf[RTMP_SIG_SIZE + 4], *clientsig=clientbuf+4;
+     uint8_t serversig[RTMP_SIG_SIZE], client2[RTMP_SIG_SIZE], *reply;
+     uint8_t type;
+-    getoff *getdh = NULL, *getdig = NULL;
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
++    getoff *getdh = NULL;
++#endif
++    getoff *getdig = NULL;
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+     if (encrypted || r->Link.SWFSize)
+         FP9HandShake = TRUE;
+     else
+         FP9HandShake = FALSE;
+ 
+     r->Link.rc4keyIn = r->Link.rc4keyOut = 0;
++#else
++    if (encrypted)
++    {
++        RTMP_Log(RTMP_LOGWARNING, "%s: encrypted RTMP is no longer supported with mbedtls 3 and later", __FUNCTION__);
++        return FALSE;
++    }
++    else if (r->Link.SWFSize)
++        FP9HandShake = TRUE;
++    else
++        FP9HandShake = FALSE;
++#endif
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+     if (encrypted)
+     {
+         clientsig[-1] = 0x06;	/* 0x08 is RTMPE as well */
+@@ -836,12 +870,16 @@ HandShake(RTMP * r, int FP9HandShake)
+     }
+     else
+         clientsig[-1] = 0x03;
++#else
++    clientsig[-1] = 0x03;
++#endif
+ 
+     uptime = htonl(RTMP_GetTime());
+     memcpy(clientsig, &uptime, 4);
+ 
+     if (FP9HandShake)
+     {
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         /* set version to at least 9.0.115.0 */
+         if (encrypted)
+         {
+@@ -853,12 +891,18 @@ HandShake(RTMP * r, int FP9HandShake)
+             clientsig[4] = 10;
+             clientsig[6] = 45;
+         }
++#else
++        clientsig[4] = 10;
++        clientsig[6] = 45;
++#endif
+         clientsig[5] = 0;
+         clientsig[7] = 2;
+ 
+         RTMP_Log(RTMP_LOGDEBUG, "%s: Client type: %02X", __FUNCTION__, clientsig[-1]);
+         getdig = digoff[offalg];
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         getdh  = dhoff[offalg];
++#endif
+     }
+     else
+     {
+@@ -877,6 +921,7 @@ HandShake(RTMP * r, int FP9HandShake)
+     /* set handshake digest */
+     if (FP9HandShake)
+     {
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         if (encrypted)
+         {
+             /* generate Diffie-Hellmann parameters */
+@@ -904,6 +949,7 @@ HandShake(RTMP * r, int FP9HandShake)
+                 return FALSE;
+             }
+         }
++#endif
+ 
+         digestPosClient = getdig(clientsig, RTMP_SIG_SIZE);	/* reuse this value in verification */
+         RTMP_Log(RTMP_LOGDEBUG, "%s: Client digest offset: %d", __FUNCTION__,
+@@ -966,7 +1012,9 @@ HandShake(RTMP * r, int FP9HandShake)
+             RTMP_Log(RTMP_LOGWARNING, "Trying different position for server digest!");
+             offalg ^= 1;
+             getdig = digoff[offalg];
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+             getdh  = dhoff[offalg];
++#endif
+             digestPosServer = getdig(serversig, RTMP_SIG_SIZE);
+ 
+             if (!VerifyDigest(digestPosServer, serversig, GenuineFMSKey, 36))
+@@ -991,6 +1039,7 @@ HandShake(RTMP * r, int FP9HandShake)
+                        (uint8_t *)&r->Link.SWFVerificationResponse[10]);
+         }
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         /* do Diffie-Hellmann Key exchange for encrypted RTMP */
+         if (encrypted)
+         {
+@@ -1017,6 +1066,7 @@ HandShake(RTMP * r, int FP9HandShake)
+                               (uint8_t *) & clientsig[dhposClient],
+                               &keyIn, &keyOut);
+         }
++#endif
+ 
+ 
+         reply = client2;
+@@ -1146,6 +1196,7 @@ HandShake(RTMP * r, int FP9HandShake)
+             RTMP_Log(RTMP_LOGDEBUG, "%s: Genuine Adobe Flash Media Server", __FUNCTION__);
+         }
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         if (encrypted)
+         {
+             char buff[RTMP_SIG_SIZE];
+@@ -1165,6 +1216,7 @@ HandShake(RTMP * r, int FP9HandShake)
+                 RC4_encrypt(r->Link.rc4keyOut, RTMP_SIG_SIZE, (uint8_t *) buff);
+             }
+         }
++#endif
+     }
+     else
+     {
+diff --git a/plugins/obs-outputs/librtmp/rtmp.c b/plugins/obs-outputs/librtmp/rtmp.c
+index 70e42f7ee636..fbc25c679526 100644
+--- a/plugins/obs-outputs/librtmp/rtmp.c
++++ b/plugins/obs-outputs/librtmp/rtmp.c
+@@ -954,7 +954,11 @@ RTMP_Connect1(RTMP *r, RTMPPacket *cp)
+ 
+ #if defined(USE_MBEDTLS)
+         mbedtls_net_context *server_fd = &r->RTMP_TLS_ctx->net;
++#if MBEDTLS_VERSION_NUMBER == 0x03000000
++        server_fd->MBEDTLS_PRIVATE(fd) = r->m_sb.sb_socket;
++#else
+         server_fd->fd = r->m_sb.sb_socket;
++#endif
+         TLS_setfd(r->m_sb.sb_ssl, server_fd);
+ 
+         // make sure we verify the certificate hostname
+@@ -1540,7 +1544,7 @@ ReadN(RTMP *r, char *buffer, int n)
+         if (r->Link.protocol & RTMP_FEATURE_HTTP)
+             r->m_resplen -= nBytes;
+ 
+-#ifdef CRYPTO
++#if defined(CRYPTO) && (!defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3)
+         if (r->Link.rc4keyIn)
+         {
+             RC4_encrypt(r->Link.rc4keyIn, nBytes, ptr);
+@@ -1562,6 +1566,7 @@ WriteN(RTMP *r, const char *buffer, int n)
+     char *encrypted = 0;
+     char buf[RTMP_BUFFER_CACHE_SIZE];
+ 
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+     if (r->Link.rc4keyOut)
+     {
+         if (n > (int)sizeof(buf))
+@@ -1571,6 +1576,7 @@ WriteN(RTMP *r, const char *buffer, int n)
+         ptr = encrypted;
+         RC4_encrypt2(r->Link.rc4keyOut, n, buffer, ptr);
+     }
++#endif
+ #endif
+ 
+     while (n > 0)
+@@ -2607,7 +2613,7 @@ b64enc(const unsigned char *input, int length, char *output, int maxsize)
+ #if defined(USE_MBEDTLS)
+ typedef	mbedtls_md5_context MD5_CTX;
+ 
+-#if MBEDTLS_VERSION_NUMBER >= 0x02070000
++#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_MAJOR < 3
+ #define MD5_Init(ctx)	mbedtls_md5_init(ctx); mbedtls_md5_starts_ret(ctx)
+ #define MD5_Update(ctx,data,len)	mbedtls_md5_update_ret(ctx,(unsigned char *)data,len)
+ #define MD5_Final(dig,ctx)	mbedtls_md5_finish_ret(ctx,dig); mbedtls_md5_free(ctx)
+@@ -4409,7 +4415,7 @@ RTMP_Close(RTMP *r)
+         free(r->Link.tcUrl.av_val);
+         r->Link.tcUrl.av_val = NULL;
+     }
+-#elif defined(CRYPTO)
++#elif defined(CRYPTO) && (!defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3)
+     if (r->Link.dh)
+     {
+         MDH_free(r->Link.dh);
+diff --git a/plugins/obs-outputs/librtmp/rtmp.h b/plugins/obs-outputs/librtmp/rtmp.h
+index 5020120ee3ee..45090c3f1b9f 100644
+--- a/plugins/obs-outputs/librtmp/rtmp.h
++++ b/plugins/obs-outputs/librtmp/rtmp.h
+@@ -342,9 +342,11 @@ extern "C"
+ 
+ #ifdef CRYPTO
+ #define RTMP_SWF_HASHLEN	32
++#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+         void *dh;			/* for encryption */
+         void *rc4keyIn;
+         void *rc4keyOut;
++#endif
+ 
+         uint32_t SWFSize;
+         uint8_t SWFHash[RTMP_SWF_HASHLEN];

@@ -11,6 +11,8 @@ Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{versi
 # Source0-md5:	a79f8bf28ab9995e333fc1ac0bcfa708
 Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20220206.tar.gz
 # Source1-md5:	7554389796e176c6bc73d453cf883703
+Patch0:		mbedtls3-compatibility.patch
+Patch1:		Remove_encrypted_RTMP_support.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -76,6 +78,8 @@ Pliki nagłówkowe OBS Studio.
 
 %prep
 %setup -q -a1
+%patch0 -p1
+%patch1 -p1
 %{__mv} obs-vst-%{obs_vst_gitref} obs-vst
 %{__mv} obs-vst plugins
 

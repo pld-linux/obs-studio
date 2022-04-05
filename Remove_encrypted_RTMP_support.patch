@@ -1,0 +1,1149 @@
+From 7d07b57993cdd8114afca6df2c4eecc619264447 Mon Sep 17 00:00:00 2001
+From: tytan652 <tytan652@tytanium.xyz>
+Date: Tue, 19 Oct 2021 15:21:32 +0200
+Subject: [PATCH] obs-outputs,librtmp: Remove encrypted RTMP support
+
+RC4 and Diffie-Hellmann Key related codes are removed
+---
+ plugins/obs-outputs/CMakeLists.txt      |   2 -
+ plugins/obs-outputs/librtmp/dh.h        | 384 ------------------------
+ plugins/obs-outputs/librtmp/dhgroups.h  | 199 ------------
+ plugins/obs-outputs/librtmp/handshake.h | 285 +-----------------
+ plugins/obs-outputs/librtmp/rtmp.c      |  45 ---
+ plugins/obs-outputs/librtmp/rtmp.h      |   6 -
+ 6 files changed, 1 insertion(+), 920 deletions(-)
+ delete mode 100644 plugins/obs-outputs/librtmp/dh.h
+ delete mode 100644 plugins/obs-outputs/librtmp/dhgroups.h
+
+diff --git a/plugins/obs-outputs/librtmp/dh.h b/plugins/obs-outputs/librtmp/dh.h
+deleted file mode 100644
+index 466b64e4adc0..000000000000
+--- a/plugins/obs-outputs/librtmp/dh.h
++++ /dev/null
+@@ -1,384 +0,0 @@
+-/*  RTMPDump - Diffie-Hellmann Key Exchange
+- *  Copyright (C) 2009 Andrej Stepanchuk
+- *  Copyright (C) 2009-2010 Howard Chu
+- *
+- *  This file is part of librtmp.
+- *
+- *  librtmp is free software; you can redistribute it and/or modify
+- *  it under the terms of the GNU Lesser General Public License as
+- *  published by the Free Software Foundation; either version 2.1,
+- *  or (at your option) any later version.
+- *
+- *  librtmp is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU Lesser General Public License
+- *  along with librtmp see the file COPYING.  If not, write to
+- *  the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+- *  Boston, MA  02110-1301, USA.
+- *  http://www.gnu.org/copyleft/lgpl.html
+- */
+-
+-#if defined(USE_MBEDTLS)
+-#include <mbedtls/dhm.h>
+-#include <mbedtls/bignum.h>
+-typedef  mbedtls_mpi* MP_t;
+-#define MP_new(m)	m = malloc(sizeof(mbedtls_mpi)); mbedtls_mpi_init(m)
+-#define MP_set_w(mpi, w)	mbedtls_mpi_lset(mpi, w)
+-#define MP_cmp(u, v)	mbedtls_mpi_cmp_mpi(u, v)
+-#define MP_set(u, v)	mbedtls_mpi_copy(u, v)
+-#define MP_sub_w(mpi, w)	mbedtls_mpi_sub_int(mpi, mpi, w)
+-#define MP_cmp_1(mpi)	mbedtls_mpi_cmp_int(mpi, 1)
+-#define MP_modexp(r, y, q, p)	mbedtls_mpi_exp_mod(r, y, q, p, NULL)
+-#define MP_free(mpi)	mbedtls_mpi_free(mpi); free(mpi)
+-#define MP_gethex(u, hex, res)	MP_new(u); res = mbedtls_mpi_read_string(u, 16, hex) == 0
+-#define MP_bytes(u)	mbedtls_mpi_size(u)
+-#define MP_setbin(u,buf,len)	mbedtls_mpi_write_binary(u,buf,len)
+-#define MP_getbin(u,buf,len)	MP_new(u); mbedtls_mpi_read_binary(u,buf,len)
+-
+-typedef struct MDH
+-{
+-    MP_t p;
+-    MP_t g;
+-    MP_t pub_key;
+-    MP_t priv_key;
+-    long length;
+-    mbedtls_dhm_context ctx;
+-} MDH;
+-
+-#define MDH_new()	calloc(1,sizeof(MDH))
+-#define MDH_free(vp)	{MDH *_dh = vp; mbedtls_dhm_free(&_dh->ctx); MP_free(_dh->p); MP_free(_dh->g); MP_free(_dh->pub_key); MP_free(_dh->priv_key); free(_dh);}
+-
+-static int MDH_generate_key(RTMP *r, MDH *dh)
+-{
+-    unsigned char out[2];
+-    MP_set(&dh->ctx.P, dh->p);
+-    MP_set(&dh->ctx.G, dh->g);
+-    dh->ctx.len = 128;
+-    mbedtls_dhm_make_public(&dh->ctx, 1024, out, 1, mbedtls_ctr_drbg_random, &r->RTMP_TLS_ctx->ctr_drbg);
+-    MP_new(dh->pub_key);
+-    MP_new(dh->priv_key);
+-    MP_set(dh->pub_key, &dh->ctx.GX);
+-    MP_set(dh->priv_key, &dh->ctx.X);
+-    return 1;
+-}
+-
+-static int MDH_compute_key(uint8_t *secret, size_t len, MP_t pub, MDH *dh)
+-{
+-    MP_set(&dh->ctx.GY, pub);
+-    size_t olen;
+-    mbedtls_dhm_calc_secret(&dh->ctx, secret, len, &olen, NULL, NULL);
+-    return 0;
+-}
+-
+-#elif defined(USE_POLARSSL)
+-#include <polarssl/dhm.h>
+-typedef mpi * MP_t;
+-#define MP_new(m)	m = malloc(sizeof(mpi)); mpi_init(m)
+-#define MP_set_w(mpi, w)	mpi_lset(mpi, w)
+-#define MP_cmp(u, v)	mpi_cmp_mpi(u, v)
+-#define MP_set(u, v)	mpi_copy(u, v)
+-#define MP_sub_w(mpi, w)	mpi_sub_int(mpi, mpi, w)
+-#define MP_cmp_1(mpi)	mpi_cmp_int(mpi, 1)
+-#define MP_modexp(r, y, q, p)	mpi_exp_mod(r, y, q, p, NULL)
+-#define MP_free(mpi)	mpi_free(mpi); free(mpi)
+-#define MP_gethex(u, hex, res)	MP_new(u); res = mpi_read_string(u, 16, hex) == 0
+-#define MP_bytes(u)	mpi_size(u)
+-#define MP_setbin(u,buf,len)	mpi_write_binary(u,buf,len)
+-#define MP_getbin(u,buf,len)	MP_new(u); mpi_read_binary(u,buf,len)
+-
+-typedef struct MDH
+-{
+-    MP_t p;
+-    MP_t g;
+-    MP_t pub_key;
+-    MP_t priv_key;
+-    long length;
+-    dhm_context ctx;
+-} MDH;
+-
+-#define MDH_new()	calloc(1,sizeof(MDH))
+-#define MDH_free(vp)	{MDH *_dh = vp; dhm_free(&_dh->ctx); MP_free(_dh->p); MP_free(_dh->g); MP_free(_dh->pub_key); MP_free(_dh->priv_key); free(_dh);}
+-
+-static int MDH_generate_key(MDH *dh)
+-{
+-    unsigned char out[2];
+-    MP_set(&dh->ctx.P, dh->p);
+-    MP_set(&dh->ctx.G, dh->g);
+-    dh->ctx.len = 128;
+-    dhm_make_public(&dh->ctx, 1024, out, 1, havege_random, &RTMP_TLS_ctx->hs);
+-    MP_new(dh->pub_key);
+-    MP_new(dh->priv_key);
+-    MP_set(dh->pub_key, &dh->ctx.GX);
+-    MP_set(dh->priv_key, &dh->ctx.X);
+-    return 1;
+-}
+-
+-static int MDH_compute_key(uint8_t *secret, size_t len, MP_t pub, MDH *dh)
+-{
+-    MP_set(&dh->ctx.GY, pub);
+-    dhm_calc_secret(&dh->ctx, secret, &len);
+-    return 0;
+-}
+-
+-#elif defined(USE_GNUTLS)
+-#include <gmp.h>
+-#include <nettle/bignum.h>
+-typedef mpz_ptr MP_t;
+-#define MP_new(m)	m = malloc(sizeof(*m)); mpz_init2(m, 1)
+-#define MP_set_w(mpi, w)	mpz_set_ui(mpi, w)
+-#define MP_cmp(u, v)	mpz_cmp(u, v)
+-#define MP_set(u, v)	mpz_set(u, v)
+-#define MP_sub_w(mpi, w)	mpz_sub_ui(mpi, mpi, w)
+-#define MP_cmp_1(mpi)	mpz_cmp_ui(mpi, 1)
+-#define MP_modexp(r, y, q, p)	mpz_powm(r, y, q, p)
+-#define MP_free(mpi)	mpz_clear(mpi); free(mpi)
+-#define MP_gethex(u, hex, res)	u = malloc(sizeof(*u)); mpz_init2(u, 1); res = (mpz_set_str(u, hex, 16) == 0)
+-#define MP_bytes(u)	(mpz_sizeinbase(u, 2) + 7) / 8
+-#define MP_setbin(u,buf,len)	nettle_mpz_get_str_256(len,buf,u)
+-#define MP_getbin(u,buf,len)	u = malloc(sizeof(*u)); mpz_init2(u, 1); nettle_mpz_set_str_256_u(u,len,buf)
+-
+-typedef struct MDH
+-{
+-    MP_t p;
+-    MP_t g;
+-    MP_t pub_key;
+-    MP_t priv_key;
+-    long length;
+-} MDH;
+-
+-#define	MDH_new()	calloc(1,sizeof(MDH))
+-#define MDH_free(dh)	do {MP_free(((MDH*)(dh))->p); MP_free(((MDH*)(dh))->g); MP_free(((MDH*)(dh))->pub_key); MP_free(((MDH*)(dh))->priv_key); free(dh);} while(0)
+-
+-extern MP_t gnutls_calc_dh_secret(MP_t *priv, MP_t g, MP_t p);
+-extern MP_t gnutls_calc_dh_key(MP_t y, MP_t x, MP_t p);
+-
+-#define MDH_generate_key(dh)	(dh->pub_key = gnutls_calc_dh_secret(&dh->priv_key, dh->g, dh->p))
+-static int MDH_compute_key(uint8_t *secret, size_t len, MP_t pub, MDH *dh)
+-{
+-    MP_t sec = gnutls_calc_dh_key(pub, dh->priv_key, dh->p);
+-    if (sec)
+-    {
+-        MP_setbin(sec, secret, len);
+-        MP_free(sec);
+-        return 0;
+-    }
+-    else
+-        return -1;
+-}
+-
+-#else /* USE_OPENSSL */
+-#include <openssl/bn.h>
+-#include <openssl/dh.h>
+-
+-typedef BIGNUM * MP_t;
+-#define MP_new(m)	m = BN_new()
+-#define MP_set_w(mpi, w)	BN_set_word(mpi, w)
+-#define MP_cmp(u, v)	BN_cmp(u, v)
+-#define MP_set(u, v)	BN_copy(u, v)
+-#define MP_sub_w(mpi, w)	BN_sub_word(mpi, w)
+-#define MP_cmp_1(mpi)	BN_cmp(mpi, BN_value_one())
+-#define MP_modexp(r, y, q, p)	do {BN_CTX *ctx = BN_CTX_new(); BN_mod_exp(r, y, q, p, ctx); BN_CTX_free(ctx);} while(0)
+-#define MP_free(mpi)	BN_free(mpi)
+-#define MP_gethex(u, hex, res)	res = BN_hex2bn(&u, hex)
+-#define MP_bytes(u)	BN_num_bytes(u)
+-#define MP_setbin(u,buf,len)	BN_bn2bin(u,buf)
+-#define MP_getbin(u,buf,len)	u = BN_bin2bn(buf,len,0)
+-
+-#define MDH	DH
+-#define MDH_new()	DH_new()
+-#define MDH_free(dh)	DH_free(dh)
+-#define MDH_generate_key(dh)	DH_generate_key(dh)
+-#define MDH_compute_key(secret, seclen, pub, dh)	DH_compute_key(secret, pub, dh)
+-
+-#endif
+-
+-#include "log.h"
+-#include "dhgroups.h"
+-
+-/* RFC 2631, Section 2.1.5, http://www.ietf.org/rfc/rfc2631.txt */
+-static int
+-isValidPublicKey(MP_t y, MP_t p, MP_t q)
+-{
+-    int ret = TRUE;
+-    MP_t bn;
+-    assert(y);
+-
+-    MP_new(bn);
+-    assert(bn);
+-
+-    /* y must lie in [2,p-1] */
+-    MP_set_w(bn, 1);
+-    if (MP_cmp(y, bn) < 0)
+-    {
+-        RTMP_Log(RTMP_LOGERROR, "DH public key must be at least 2");
+-        ret = FALSE;
+-        goto failed;
+-    }
+-
+-    /* bn = p-2 */
+-    MP_set(bn, p);
+-    MP_sub_w(bn, 1);
+-    if (MP_cmp(y, bn) > 0)
+-    {
+-        RTMP_Log(RTMP_LOGERROR, "DH public key must be at most p-2");
+-        ret = FALSE;
+-        goto failed;
+-    }
+-
+-    /* Verify with Sophie-Germain prime
+-     *
+-     * This is a nice test to make sure the public key position is calculated
+-     * correctly. This test will fail in about 50% of the cases if applied to
+-     * random data.
+-     */
+-    if (q)
+-    {
+-        /* y must fulfill y^q mod p = 1 */
+-        MP_modexp(bn, y, q, p);
+-
+-        if (MP_cmp_1(bn) != 0)
+-        {
+-            RTMP_Log(RTMP_LOGWARNING, "DH public key does not fulfill y^q mod p = 1");
+-        }
+-    }
+-
+-failed:
+-    MP_free(bn);
+-    return ret;
+-}
+-
+-static MDH *
+-DHInit(int nKeyBits)
+-{
+-    size_t res;
+-    MDH *dh = MDH_new();
+-
+-    if (!dh)
+-        goto failed;
+-
+-    MP_new(dh->g);
+-
+-    if (!dh->g)
+-        goto failed;
+-
+-    MP_gethex(dh->p, P1024, res);	/* prime P1024, see dhgroups.h */
+-    if (!res)
+-    {
+-        goto failed;
+-    }
+-
+-    MP_set_w(dh->g, 2);	/* base 2 */
+-
+-    dh->length = nKeyBits;
+-    return dh;
+-
+-failed:
+-    if (dh)
+-        MDH_free(dh);
+-
+-    return 0;
+-}
+-
+-static int
+-DHGenerateKey(RTMP *r)
+-{
+-    MDH *dh = r->Link.dh;
+-    size_t res = 0;
+-    if (!dh)
+-        return 0;
+-
+-    while (!res)
+-    {
+-        MP_t q1 = NULL;
+-
+-        if (!MDH_generate_key(r, dh))
+-            return 0;
+-
+-        MP_gethex(q1, Q1024, res);
+-        assert(res);
+-
+-        res = isValidPublicKey(dh->pub_key, dh->p, q1);
+-        if (!res)
+-        {
+-            MP_free(dh->pub_key);
+-            MP_free(dh->priv_key);
+-            dh->pub_key = dh->priv_key = 0;
+-        }
+-
+-        MP_free(q1);
+-    }
+-    return 1;
+-}
+-
+-/* fill pubkey with the public key in BIG ENDIAN order
+- * 00 00 00 00 00 x1 x2 x3 .....
+- */
+-
+-static int
+-DHGetPublicKey(MDH *dh, uint8_t *pubkey, size_t nPubkeyLen)
+-{
+-    int len;
+-    if (!dh || !dh->pub_key)
+-        return 0;
+-
+-    len = (int)MP_bytes(dh->pub_key);
+-    if (len <= 0 || len > (int) nPubkeyLen)
+-        return 0;
+-
+-    memset(pubkey, 0, nPubkeyLen);
+-    MP_setbin(dh->pub_key, pubkey + (nPubkeyLen - len), len);
+-    return 1;
+-}
+-
+-#if 0	/* unused */
+-static int
+-DHGetPrivateKey(MDH *dh, uint8_t *privkey, size_t nPrivkeyLen)
+-{
+-    if (!dh || !dh->priv_key)
+-        return 0;
+-
+-    int len = MP_bytes(dh->priv_key);
+-    if (len <= 0 || len > (int) nPrivkeyLen)
+-        return 0;
+-
+-    memset(privkey, 0, nPrivkeyLen);
+-    MP_setbin(dh->priv_key, privkey + (nPrivkeyLen - len), len);
+-    return 1;
+-}
+-#endif
+-
+-/* computes the shared secret key from the private MDH value and the
+- * other party's public key (pubkey)
+- */
+-static int
+-DHComputeSharedSecretKey(MDH *dh, uint8_t *pubkey, size_t nPubkeyLen,
+-                         uint8_t *secret)
+-{
+-    MP_t q1 = NULL, pubkeyBn = NULL;
+-    size_t len;
+-    int res;
+-
+-    if (!dh || !secret || nPubkeyLen >= INT_MAX)
+-        return -1;
+-
+-    MP_getbin(pubkeyBn, pubkey, nPubkeyLen);
+-    if (!pubkeyBn)
+-        return -1;
+-
+-    MP_gethex(q1, Q1024, len);
+-    assert(len);
+-    UNUSED_PARAMETER(len); // Make GCC happy len is used in release.
+-
+-    if (isValidPublicKey(pubkeyBn, dh->p, q1))
+-        res = MDH_compute_key(secret, nPubkeyLen, pubkeyBn, dh);
+-    else
+-        res = -1;
+-
+-    MP_free(q1);
+-    MP_free(pubkeyBn);
+-
+-    return res;
+-}
+diff --git a/plugins/obs-outputs/librtmp/dhgroups.h b/plugins/obs-outputs/librtmp/dhgroups.h
+deleted file mode 100644
+index 2db3989ce1f6..000000000000
+--- a/plugins/obs-outputs/librtmp/dhgroups.h
++++ /dev/null
+@@ -1,199 +0,0 @@
+-/*  librtmp - Diffie-Hellmann Key Exchange
+- *  Copyright (C) 2009 Andrej Stepanchuk
+- *
+- *  This file is part of librtmp.
+- *
+- *  librtmp is free software; you can redistribute it and/or modify
+- *  it under the terms of the GNU Lesser General Public License as
+- *  published by the Free Software Foundation; either version 2.1,
+- *  or (at your option) any later version.
+- *
+- *  librtmp is distributed in the hope that it will be useful,
+- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+- *  GNU General Public License for more details.
+- *
+- *  You should have received a copy of the GNU Lesser General Public License
+- *  along with librtmp see the file COPYING.  If not, write to
+- *  the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+- *  Boston, MA  02110-1301, USA.
+- *  http://www.gnu.org/copyleft/lgpl.html
+- */
+-
+-/* from RFC 3526, see http://www.ietf.org/rfc/rfc3526.txt */
+-
+-/* 2^768 - 2 ^704 - 1 + 2^64 * { [2^638 pi] + 149686 } */
+-#define P768 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A63A3620FFFFFFFFFFFFFFFF"
+-
+-/* 2^1024 - 2^960 - 1 + 2^64 * { [2^894 pi] + 129093 } */
+-#define P1024 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381" \
+-	"FFFFFFFFFFFFFFFF"
+-
+-/* Group morder largest prime factor: */
+-#define Q1024 \
+-	"7FFFFFFFFFFFFFFFE487ED5110B4611A62633145C06E0E68" \
+-        "948127044533E63A0105DF531D89CD9128A5043CC71A026E" \
+-        "F7CA8CD9E69D218D98158536F92F8A1BA7F09AB6B6A8E122" \
+-        "F242DABB312F3F637A262174D31BF6B585FFAE5B7A035BF6" \
+-        "F71C35FDAD44CFD2D74F9208BE258FF324943328F67329C0" \
+-        "FFFFFFFFFFFFFFFF"
+-
+-/* 2^1536 - 2^1472 - 1 + 2^64 * { [2^1406 pi] + 741804 } */
+-#define P1536 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-        "29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-        "EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-        "E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-        "EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-        "C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-        "83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-        "670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"
+-
+-/* 2^2048 - 2^1984 - 1 + 2^64 * { [2^1918 pi] + 124476 } */
+-#define P2048 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-	"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-	"83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-	"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B" \
+-	"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9" \
+-	"DE2BCBF6955817183995497CEA956AE515D2261898FA0510" \
+-	"15728E5A8AACAA68FFFFFFFFFFFFFFFF"
+-
+-/* 2^3072 - 2^3008 - 1 + 2^64 * { [2^2942 pi] + 1690314 } */
+-#define P3072 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-	"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-	"83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-	"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B" \
+-	"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9" \
+-	"DE2BCBF6955817183995497CEA956AE515D2261898FA0510" \
+-	"15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64" \
+-	"ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7" \
+-	"ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B" \
+-	"F12FFA06D98A0864D87602733EC86A64521F2B18177B200C" \
+-	"BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31" \
+-	"43DB5BFCE0FD108E4B82D120A93AD2CAFFFFFFFFFFFFFFFF"
+-
+-/* 2^4096 - 2^4032 - 1 + 2^64 * { [2^3966 pi] + 240904 } */
+-#define P4096 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-	"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-	"83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-	"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B" \
+-	"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9" \
+-	"DE2BCBF6955817183995497CEA956AE515D2261898FA0510" \
+-	"15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64" \
+-	"ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7" \
+-	"ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B" \
+-	"F12FFA06D98A0864D87602733EC86A64521F2B18177B200C" \
+-	"BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31" \
+-	"43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7" \
+-	"88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA" \
+-	"2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6" \
+-	"287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED" \
+-	"1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9" \
+-	"93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934063199" \
+-	"FFFFFFFFFFFFFFFF"
+-
+-/* 2^6144 - 2^6080 - 1 + 2^64 * { [2^6014 pi] + 929484 } */
+-#define P6144 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-	"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-	"83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-	"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B" \
+-	"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9" \
+-	"DE2BCBF6955817183995497CEA956AE515D2261898FA0510" \
+-	"15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64" \
+-	"ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7" \
+-	"ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B" \
+-	"F12FFA06D98A0864D87602733EC86A64521F2B18177B200C" \
+-	"BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31" \
+-	"43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7" \
+-	"88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA" \
+-	"2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6" \
+-	"287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED" \
+-	"1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9" \
+-	"93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492" \
+-	"36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BD" \
+-	"F8FF9406AD9E530EE5DB382F413001AEB06A53ED9027D831" \
+-	"179727B0865A8918DA3EDBEBCF9B14ED44CE6CBACED4BB1B" \
+-	"DB7F1447E6CC254B332051512BD7AF426FB8F401378CD2BF" \
+-	"5983CA01C64B92ECF032EA15D1721D03F482D7CE6E74FEF6" \
+-	"D55E702F46980C82B5A84031900B1C9E59E7C97FBEC7E8F3" \
+-	"23A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA" \
+-	"CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE328" \
+-	"06A1D58BB7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55C" \
+-	"DA56C9EC2EF29632387FE8D76E3C0468043E8F663F4860EE" \
+-	"12BF2D5B0B7474D6E694F91E6DCC4024FFFFFFFFFFFFFFFF"
+-
+-/* 2^8192 - 2^8128 - 1 + 2^64 * { [2^8062 pi] + 4743158 } */
+-#define P8192 \
+-	"FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD1" \
+-	"29024E088A67CC74020BBEA63B139B22514A08798E3404DD" \
+-	"EF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245" \
+-	"E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED" \
+-	"EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3D" \
+-	"C2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F" \
+-	"83655D23DCA3AD961C62F356208552BB9ED529077096966D" \
+-	"670C354E4ABC9804F1746C08CA18217C32905E462E36CE3B" \
+-	"E39E772C180E86039B2783A2EC07A28FB5C55DF06F4C52C9" \
+-	"DE2BCBF6955817183995497CEA956AE515D2261898FA0510" \
+-	"15728E5A8AAAC42DAD33170D04507A33A85521ABDF1CBA64" \
+-	"ECFB850458DBEF0A8AEA71575D060C7DB3970F85A6E1E4C7" \
+-	"ABF5AE8CDB0933D71E8C94E04A25619DCEE3D2261AD2EE6B" \
+-	"F12FFA06D98A0864D87602733EC86A64521F2B18177B200C" \
+-	"BBE117577A615D6C770988C0BAD946E208E24FA074E5AB31" \
+-	"43DB5BFCE0FD108E4B82D120A92108011A723C12A787E6D7" \
+-	"88719A10BDBA5B2699C327186AF4E23C1A946834B6150BDA" \
+-	"2583E9CA2AD44CE8DBBBC2DB04DE8EF92E8EFC141FBECAA6" \
+-	"287C59474E6BC05D99B2964FA090C3A2233BA186515BE7ED" \
+-	"1F612970CEE2D7AFB81BDD762170481CD0069127D5B05AA9" \
+-	"93B4EA988D8FDDC186FFB7DC90A6C08F4DF435C934028492" \
+-	"36C3FAB4D27C7026C1D4DCB2602646DEC9751E763DBA37BD" \
+-	"F8FF9406AD9E530EE5DB382F413001AEB06A53ED9027D831" \
+-	"179727B0865A8918DA3EDBEBCF9B14ED44CE6CBACED4BB1B" \
+-	"DB7F1447E6CC254B332051512BD7AF426FB8F401378CD2BF" \
+-	"5983CA01C64B92ECF032EA15D1721D03F482D7CE6E74FEF6" \
+-	"D55E702F46980C82B5A84031900B1C9E59E7C97FBEC7E8F3" \
+-	"23A97A7E36CC88BE0F1D45B7FF585AC54BD407B22B4154AA" \
+-	"CC8F6D7EBF48E1D814CC5ED20F8037E0A79715EEF29BE328" \
+-	"06A1D58BB7C5DA76F550AA3D8A1FBFF0EB19CCB1A313D55C" \
+-	"DA56C9EC2EF29632387FE8D76E3C0468043E8F663F4860EE" \
+-	"12BF2D5B0B7474D6E694F91E6DBE115974A3926F12FEE5E4" \
+-	"38777CB6A932DF8CD8BEC4D073B931BA3BC832B68D9DD300" \
+-	"741FA7BF8AFC47ED2576F6936BA424663AAB639C5AE4F568" \
+-	"3423B4742BF1C978238F16CBE39D652DE3FDB8BEFC848AD9" \
+-	"22222E04A4037C0713EB57A81A23F0C73473FC646CEA306B" \
+-	"4BCBC8862F8385DDFA9D4B7FA2C087E879683303ED5BDD3A" \
+-	"062B3CF5B3A278A66D2A13F83F44F82DDF310EE074AB6A36" \
+-	"4597E899A0255DC164F31CC50846851DF9AB48195DED7EA1" \
+-	"B1D510BD7EE74D73FAF36BC31ECFA268359046F4EB879F92" \
+-	"4009438B481C6CD7889A002ED5EE382BC9190DA6FC026E47" \
+-	"9558E4475677E9AA9E3050E2765694DFC81F56E880B96E71" \
+-	"60C980DD98EDD3DFFFFFFFFFFFFFFFFF"
+-
+diff --git a/plugins/obs-outputs/librtmp/handshake.h b/plugins/obs-outputs/librtmp/handshake.h
+index 7f7825592aad..0114bdec0f40 100644
+--- a/plugins/obs-outputs/librtmp/handshake.h
++++ b/plugins/obs-outputs/librtmp/handshake.h
+@@ -26,9 +26,6 @@
+ 
+ #if defined(USE_MBEDTLS)
+ #include <mbedtls/md.h>
+-#if MBEDTLS_VERSION_MAJOR < 3
+-#include <mbedtls/arc4.h>
+-#endif
+ #ifndef SHA256_DIGEST_LENGTH
+ #define SHA256_DIGEST_LENGTH	32
+ #endif
+@@ -40,18 +37,8 @@ typedef mbedtls_md_context_t *HMAC_CTX;
+ #define HMAC_finish(ctx, dig)		mbedtls_md_hmac_finish(ctx, dig)
+ #define HMAC_close(ctx)			mbedtls_md_free(ctx); free(ctx); ctx = NULL
+ 
+-#if MBEDTLS_VERSION_MAJOR < 3
+-typedef mbedtls_arc4_context*	RC4_handle;
+-#define RC4_alloc(h)	*h = malloc(sizeof(mbedtls_arc4_context)); mbedtls_arc4_init(*h)
+-#define RC4_setkey(h,l,k)	mbedtls_arc4_setup(h,k,l)
+-#define RC4_encrypt(h,l,d)	mbedtls_arc4_crypt(h,l,(unsigned char *)d,(unsigned char *)d)
+-#define RC4_encrypt2(h,l,s,d)	mbedtls_arc4_crypt(h,l,(unsigned char *)s,(unsigned char *)d)
+-#define RC4_free(h)	mbedtls_arc4_free(h); free(h); h = NULL
+-#endif
+-
+ #elif defined(USE_POLARSSL)
+ #include <polarssl/sha2.h>
+-#include <polarssl/arc4.h>
+ #ifndef SHA256_DIGEST_LENGTH
+ #define SHA256_DIGEST_LENGTH	32
+ #endif
+@@ -60,13 +47,6 @@ typedef mbedtls_arc4_context*	RC4_handle;
+ #define HMAC_crunch(ctx, buf, len)	sha2_hmac_update(&ctx, buf, len)
+ #define HMAC_finish(ctx, dig)		sha2_hmac_finish(&ctx, dig)
+ 
+-typedef arc4_context *	RC4_handle;
+-#define RC4_alloc(h)	*h = malloc(sizeof(arc4_context))
+-#define RC4_setkey(h,l,k)	arc4_setup(h,k,l)
+-#define RC4_encrypt(h,l,d)	arc4_crypt(h,l,(unsigned char *)d,(unsigned char *)d)
+-#define RC4_encrypt2(h,l,s,d)	arc4_crypt(h,l,(unsigned char *)s,(unsigned char *)d)
+-#define RC4_free(h)	free(h)
+-
+ #elif defined(USE_GNUTLS)
+ #include <nettle/hmac.h>
+ #include <nettle/arcfour.h>
+@@ -80,38 +60,19 @@ typedef arc4_context *	RC4_handle;
+ #define HMAC_finish(ctx, dig)		hmac_sha256_digest(&ctx, SHA256_DIGEST_LENGTH, dig)
+ #define HMAC_close(ctx)
+ 
+-typedef struct arcfour_ctx*	RC4_handle;
+-#define RC4_alloc(h)	*h = malloc(sizeof(struct arcfour_ctx))
+-#define RC4_setkey(h,l,k)	arcfour_set_key(h, l, k)
+-#define RC4_encrypt(h,l,d)	arcfour_crypt(h,l,(uint8_t *)d,(uint8_t *)d)
+-#define RC4_encrypt2(h,l,s,d)	arcfour_crypt(h,l,(uint8_t *)d,(uint8_t *)s)
+-#define RC4_free(h)	free(h)
+-
+ #else	/* USE_OPENSSL */
+ #include <openssl/sha.h>
+ #include <openssl/hmac.h>
+-#include <openssl/rc4.h>
+ #if OPENSSL_VERSION_NUMBER < 0x0090800 || !defined(SHA256_DIGEST_LENGTH)
+ #error Your OpenSSL is too old, need 0.9.8 or newer with SHA256
+ #endif
+ #define HMAC_setup(ctx, key, len)	HMAC_CTX_init(&ctx); HMAC_Init_ex(&ctx, key, len, EVP_sha256(), 0)
+ #define HMAC_crunch(ctx, buf, len)	HMAC_Update(&ctx, buf, len)
+ #define HMAC_finish(ctx, dig, len)	HMAC_Final(&ctx, dig, &len); HMAC_CTX_cleanup(&ctx)
+-
+-typedef RC4_KEY *	RC4_handle;
+-#define RC4_alloc(h)	*h = malloc(sizeof(RC4_KEY))
+-#define RC4_setkey(h,l,k)	RC4_set_key(h,l,k)
+-#define RC4_encrypt(h,l,d)	RC4(h,l,(uint8_t *)d,(uint8_t *)d)
+-#define RC4_encrypt2(h,l,s,d)	RC4(h,l,(uint8_t *)s,(uint8_t *)d)
+-#define RC4_free(h)	free(h)
+ #endif
+ 
+ #define FP10
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-#include "dh.h"
+-#endif
+-
+ static const uint8_t GenuineFMSKey[] =
+ {
+     0x47, 0x65, 0x6e, 0x75, 0x69, 0x6e, 0x65, 0x20, 0x41, 0x64, 0x6f, 0x62,
+@@ -139,84 +100,8 @@ static const uint8_t GenuineFPKey[] =
+     0x31, 0xAE
+ };				/* 62 */
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-static void InitRC4Encryption
+-(uint8_t * secretKey,
+- uint8_t * pubKeyIn,
+- uint8_t * pubKeyOut, RC4_handle *rc4keyIn, RC4_handle *rc4keyOut)
+-{
+-    uint8_t digest[SHA256_DIGEST_LENGTH];
+-#if !(defined(USE_MBEDTLS) || defined(USE_POLARSSL) || defined(USE_GNUTLS))
+-    unsigned int digestLen = 0;
+-#endif
+-    HMAC_CTX ctx;
+-
+-    RC4_alloc(rc4keyIn);
+-    RC4_alloc(rc4keyOut);
+-
+-    HMAC_setup(ctx, secretKey, 128);
+-    HMAC_crunch(ctx, pubKeyIn, 128);
+-#if defined(USE_MBEDTLS) || defined(USE_POLARSSL) || defined(USE_GNUTLS)
+-    HMAC_finish(ctx, digest);
+-#else
+-    HMAC_finish(ctx, digest, digestLen);
+-#endif
+-
+-    RTMP_Log(RTMP_LOGDEBUG, "RC4 Out Key: ");
+-    RTMP_LogHex(RTMP_LOGDEBUG, digest, 16);
+-
+-    RC4_setkey(*rc4keyOut, 16, digest);
+-
+-    HMAC_setup(ctx, secretKey, 128);
+-    HMAC_crunch(ctx, pubKeyOut, 128);
+-#if defined(USE_MBEDTLS) || defined(USE_POLARSSL) || defined(USE_GNUTLS)
+-    HMAC_finish(ctx, digest);
+-#else
+-    HMAC_finish(ctx, digest, digestLen);
+-#endif
+-
+-    RTMP_Log(RTMP_LOGDEBUG, "RC4 In Key: ");
+-    RTMP_LogHex(RTMP_LOGDEBUG, digest, 16);
+-
+-    RC4_setkey(*rc4keyIn, 16, digest);
+-}
+-#endif
+-
+ typedef unsigned int (getoff)(uint8_t *buf, unsigned int len);
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-static unsigned int
+-GetDHOffset2(uint8_t *handshake, unsigned int len)
+-{
+-    (void) len;
+-
+-    unsigned int offset = 0;
+-    uint8_t *ptr = handshake + 768;
+-    unsigned int res;
+-
+-    assert(RTMP_SIG_SIZE <= len);
+-
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-
+-    res = (offset % 632) + 8;
+-
+-    if (res + 128 > 767)
+-    {
+-        RTMP_Log(RTMP_LOGERROR,
+-                 "%s: Couldn't calculate correct DH offset (got %d), exiting!",
+-                 __FUNCTION__, res);
+-        exit(1);
+-    }
+-    return res;
+-}
+-#endif
+-
+ static unsigned int
+ GetDigestOffset2(uint8_t *handshake, unsigned int len)
+ {
+@@ -248,39 +133,6 @@ GetDigestOffset2(uint8_t *handshake, unsigned int len)
+     return res;
+ }
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-static unsigned int
+-GetDHOffset1(uint8_t *handshake, unsigned int len)
+-{
+-    (void) len;
+-
+-    unsigned int offset = 0;
+-    uint8_t *ptr = handshake + 1532;
+-    unsigned int res;
+-
+-    assert(RTMP_SIG_SIZE <= len);
+-
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-    ptr++;
+-    offset += (*ptr);
+-
+-    res = (offset % 632) + 772;
+-
+-    if (res + 128 > 1531)
+-    {
+-        RTMP_Log(RTMP_LOGERROR, "%s: Couldn't calculate DH offset (got %d), exiting!",
+-                 __FUNCTION__, res);
+-        exit(1);
+-    }
+-
+-    return res;
+-}
+-#endif
+-
+ static unsigned int
+ GetDigestOffset1(uint8_t *handshake, unsigned int len)
+ {
+@@ -314,9 +166,6 @@ GetDigestOffset1(uint8_t *handshake, unsigned int len)
+ }
+ 
+ static getoff *digoff[] = {GetDigestOffset1, GetDigestOffset2};
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-static getoff *dhoff[] = {GetDHOffset1, GetDHOffset2};
+-#endif
+ 
+ static void
+ HMACsha256(const uint8_t *message, size_t messageLen, const uint8_t *key,
+@@ -819,17 +668,9 @@ static int
+ HandShake(RTMP * r, int FP9HandShake)
+ {
+     int i, offalg = 0;
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    int dhposClient = 0;
+-#endif
+     int digestPosClient = 0;
+     int encrypted = r->Link.protocol & RTMP_FEATURE_ENC;
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    RC4_handle keyIn = 0;
+-    RC4_handle keyOut = 0;
+-#endif
+-
+ #ifndef _DEBUG
+     int32_t *ip;
+ #endif
+@@ -838,71 +679,32 @@ HandShake(RTMP * r, int FP9HandShake)
+     uint8_t clientbuf[RTMP_SIG_SIZE + 4], *clientsig=clientbuf+4;
+     uint8_t serversig[RTMP_SIG_SIZE], client2[RTMP_SIG_SIZE], *reply;
+     uint8_t type;
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    getoff *getdh = NULL;
+-#endif
+     getoff *getdig = NULL;
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    if (encrypted || r->Link.SWFSize)
+-        FP9HandShake = TRUE;
+-    else
+-        FP9HandShake = FALSE;
+-
+-    r->Link.rc4keyIn = r->Link.rc4keyOut = 0;
+-#else
+     if (encrypted)
+     {
+-        RTMP_Log(RTMP_LOGWARNING, "%s: encrypted RTMP is no longer supported with mbedtls 3 and later", __FUNCTION__);
++        RTMP_Log(RTMP_LOGERROR, "%s: encrypted RTMP is not supported", __FUNCTION__);
+         return FALSE;
+     }
+     else if (r->Link.SWFSize)
+         FP9HandShake = TRUE;
+     else
+         FP9HandShake = FALSE;
+-#endif
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    if (encrypted)
+-    {
+-        clientsig[-1] = 0x06;	/* 0x08 is RTMPE as well */
+-        offalg = 1;
+-    }
+-    else
+-        clientsig[-1] = 0x03;
+-#else
+     clientsig[-1] = 0x03;
+-#endif
+ 
+     uptime = htonl(RTMP_GetTime());
+     memcpy(clientsig, &uptime, 4);
+ 
+     if (FP9HandShake)
+     {
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        /* set version to at least 9.0.115.0 */
+-        if (encrypted)
+-        {
+-            clientsig[4] = 128;
+-            clientsig[6] = 3;
+-        }
+-        else
+-        {
+-            clientsig[4] = 10;
+-            clientsig[6] = 45;
+-        }
+-#else
+         clientsig[4] = 10;
+         clientsig[6] = 45;
+-#endif
+         clientsig[5] = 0;
+         clientsig[7] = 2;
+ 
+         RTMP_Log(RTMP_LOGDEBUG, "%s: Client type: %02X", __FUNCTION__, clientsig[-1]);
+         getdig = digoff[offalg];
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        getdh  = dhoff[offalg];
+-#endif
+     }
+     else
+     {
+@@ -921,36 +723,6 @@ HandShake(RTMP * r, int FP9HandShake)
+     /* set handshake digest */
+     if (FP9HandShake)
+     {
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        if (encrypted)
+-        {
+-            /* generate Diffie-Hellmann parameters */
+-            r->Link.dh = DHInit(1024);
+-            if (!r->Link.dh)
+-            {
+-                RTMP_Log(RTMP_LOGERROR, "%s: Couldn't initialize Diffie-Hellmann!",
+-                         __FUNCTION__);
+-                return FALSE;
+-            }
+-
+-            dhposClient = getdh(clientsig, RTMP_SIG_SIZE);
+-            RTMP_Log(RTMP_LOGDEBUG, "%s: DH pubkey position: %d", __FUNCTION__, dhposClient);
+-
+-            if (!DHGenerateKey(r))
+-            {
+-                RTMP_Log(RTMP_LOGERROR, "%s: Couldn't generate Diffie-Hellmann public key!",
+-                         __FUNCTION__);
+-                return FALSE;
+-            }
+-
+-            if (!DHGetPublicKey(r->Link.dh, &clientsig[dhposClient], 128))
+-            {
+-                RTMP_Log(RTMP_LOGERROR, "%s: Couldn't write public key!", __FUNCTION__);
+-                return FALSE;
+-            }
+-        }
+-#endif
+-
+         digestPosClient = getdig(clientsig, RTMP_SIG_SIZE);	/* reuse this value in verification */
+         RTMP_Log(RTMP_LOGDEBUG, "%s: Client digest offset: %d", __FUNCTION__,
+                  digestPosClient);
+@@ -1012,9 +784,6 @@ HandShake(RTMP * r, int FP9HandShake)
+             RTMP_Log(RTMP_LOGWARNING, "Trying different position for server digest!");
+             offalg ^= 1;
+             getdig = digoff[offalg];
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-            getdh  = dhoff[offalg];
+-#endif
+             digestPosServer = getdig(serversig, RTMP_SIG_SIZE);
+ 
+             if (!VerifyDigest(digestPosServer, serversig, GenuineFMSKey, 36))
+@@ -1039,36 +808,6 @@ HandShake(RTMP * r, int FP9HandShake)
+                        (uint8_t *)&r->Link.SWFVerificationResponse[10]);
+         }
+ 
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        /* do Diffie-Hellmann Key exchange for encrypted RTMP */
+-        if (encrypted)
+-        {
+-            /* compute secret key */
+-            uint8_t secretKey[128] = { 0 };
+-            int len, dhposServer;
+-
+-            dhposServer = getdh(serversig, RTMP_SIG_SIZE);
+-            RTMP_Log(RTMP_LOGDEBUG, "%s: Server DH public key offset: %d", __FUNCTION__,
+-                     dhposServer);
+-            len = DHComputeSharedSecretKey(r->Link.dh, &serversig[dhposServer],
+-                                           128, secretKey);
+-            if (len < 0)
+-            {
+-                RTMP_Log(RTMP_LOGDEBUG, "%s: Wrong secret key position!", __FUNCTION__);
+-                return FALSE;
+-            }
+-
+-            RTMP_Log(RTMP_LOGDEBUG, "%s: Secret key: ", __FUNCTION__);
+-            RTMP_LogHex(RTMP_LOGDEBUG, secretKey, 128);
+-
+-            InitRC4Encryption(secretKey,
+-                              (uint8_t *) & serversig[dhposServer],
+-                              (uint8_t *) & clientsig[dhposClient],
+-                              &keyIn, &keyOut);
+-        }
+-#endif
+-
+-
+         reply = client2;
+ #ifdef _DEBUG
+         memset(reply, 0xff, RTMP_SIG_SIZE);
+@@ -1195,28 +934,6 @@ HandShake(RTMP * r, int FP9HandShake)
+         {
+             RTMP_Log(RTMP_LOGDEBUG, "%s: Genuine Adobe Flash Media Server", __FUNCTION__);
+         }
+-
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        if (encrypted)
+-        {
+-            char buff[RTMP_SIG_SIZE];
+-            /* set keys for encryption from now on */
+-            r->Link.rc4keyIn = keyIn;
+-            r->Link.rc4keyOut = keyOut;
+-
+-
+-            /* update the keystreams */
+-            if (r->Link.rc4keyIn)
+-            {
+-                RC4_encrypt(r->Link.rc4keyIn, RTMP_SIG_SIZE, (uint8_t *) buff);
+-            }
+-
+-            if (r->Link.rc4keyOut)
+-            {
+-                RC4_encrypt(r->Link.rc4keyOut, RTMP_SIG_SIZE, (uint8_t *) buff);
+-            }
+-        }
+-#endif
+     }
+     else
+     {
+diff --git a/plugins/obs-outputs/librtmp/rtmp.c b/plugins/obs-outputs/librtmp/rtmp.c
+index fbc25c679526..ba86666af455 100644
+--- a/plugins/obs-outputs/librtmp/rtmp.c
++++ b/plugins/obs-outputs/librtmp/rtmp.c
+@@ -81,7 +81,6 @@ static const char *my_dhm_G = "4";
+ #include <nettle/md5.h>
+ #else	/* USE_OPENSSL */
+ #include <openssl/ssl.h>
+-#include <openssl/rc4.h>
+ #include <openssl/md5.h>
+ #include <openssl/bio.h>
+ #include <openssl/buffer.h>
+@@ -1544,13 +1543,6 @@ ReadN(RTMP *r, char *buffer, int n)
+         if (r->Link.protocol & RTMP_FEATURE_HTTP)
+             r->m_resplen -= nBytes;
+ 
+-#if defined(CRYPTO) && (!defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3)
+-        if (r->Link.rc4keyIn)
+-        {
+-            RC4_encrypt(r->Link.rc4keyIn, nBytes, ptr);
+-        }
+-#endif
+-
+         n -= nBytes;
+         ptr += nBytes;
+     }
+@@ -1562,22 +1554,6 @@ static int
+ WriteN(RTMP *r, const char *buffer, int n)
+ {
+     const char *ptr = buffer;
+-#ifdef CRYPTO
+-    char *encrypted = 0;
+-    char buf[RTMP_BUFFER_CACHE_SIZE];
+-
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-    if (r->Link.rc4keyOut)
+-    {
+-        if (n > (int)sizeof(buf))
+-            encrypted = (char *)malloc(n);
+-        else
+-            encrypted = (char *)buf;
+-        ptr = encrypted;
+-        RC4_encrypt2(r->Link.rc4keyOut, n, buffer, ptr);
+-    }
+-#endif
+-#endif
+ 
+     while (n > 0)
+     {
+@@ -1614,11 +1590,6 @@ WriteN(RTMP *r, const char *buffer, int n)
+         ptr += nBytes;
+     }
+ 
+-#ifdef CRYPTO
+-    if (encrypted && encrypted != buf)
+-        free(encrypted);
+-#endif
+-
+     return n == 0;
+ }
+ 
+@@ -4415,22 +4386,6 @@ RTMP_Close(RTMP *r)
+         free(r->Link.tcUrl.av_val);
+         r->Link.tcUrl.av_val = NULL;
+     }
+-#elif defined(CRYPTO) && (!defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3)
+-    if (r->Link.dh)
+-    {
+-        MDH_free(r->Link.dh);
+-        r->Link.dh = NULL;
+-    }
+-    if (r->Link.rc4keyIn)
+-    {
+-        RC4_free(r->Link.rc4keyIn);
+-        r->Link.rc4keyIn = NULL;
+-    }
+-    if (r->Link.rc4keyOut)
+-    {
+-        RC4_free(r->Link.rc4keyOut);
+-        r->Link.rc4keyOut = NULL;
+-    }
+ #else
+     for (int idx = 0; idx < r->Link.nStreams; idx++)
+     {
+diff --git a/plugins/obs-outputs/librtmp/rtmp.h b/plugins/obs-outputs/librtmp/rtmp.h
+index 45090c3f1b9f..cc7e8049e644 100644
+--- a/plugins/obs-outputs/librtmp/rtmp.h
++++ b/plugins/obs-outputs/librtmp/rtmp.h
+@@ -342,12 +342,6 @@ extern "C"
+ 
+ #ifdef CRYPTO
+ #define RTMP_SWF_HASHLEN	32
+-#if !defined(USE_MBEDTLS) || MBEDTLS_VERSION_MAJOR < 3
+-        void *dh;			/* for encryption */
+-        void *rc4keyIn;
+-        void *rc4keyOut;
+-#endif
+-
+         uint32_t SWFSize;
+         uint8_t SWFHash[RTMP_SWF_HASHLEN];
+         char SWFVerificationResponse[RTMP_SWF_HASHLEN+10];
+--- obs-studio-27.2.4/plugins/obs-outputs/CMakeLists.txt~	2022-03-27 23:29:23.000000000 +0000
++++ obs-studio-27.2.4/plugins/obs-outputs/CMakeLists.txt	2022-04-05 09:51:23.457925255 +0000
+@@ -131,8 +131,6 @@
+ 	librtmp/amf.h
+ 	librtmp/bytes.h
+ 	librtmp/cencode.h
+-	librtmp/dh.h
+-	librtmp/dhgroups.h
+ 	librtmp/handshake.h
+ 	librtmp/http.h
+ 	librtmp/log.h
