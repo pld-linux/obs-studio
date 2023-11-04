@@ -11,6 +11,7 @@ Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{versi
 # Source0-md5:	5597636f9c66342566f47d68aa4c6693
 Patch0:		disable-missing-plugins.patch
 Patch1:		size_t.patch
+Patch2:		x32.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -83,6 +84,9 @@ Pliki nagłówkowe OBS Studio.
 %setup -q
 %patch0 -p1
 %patch1 -p1
+%ifarch x32
+%patch2 -p1
+%endif
 
 %build
 install -d build
