@@ -10,13 +10,16 @@ Group:		X11/Applications/Multimedia
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
 # Source0-md5:	5597636f9c66342566f47d68aa4c6693
 Patch0:		disable-missing-plugins.patch
+Patch1:		size_t.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
-BuildRequires:	Qt6Core-devel >= 5
-BuildRequires:	Qt6Gui-devel >= 5
-BuildRequires:	Qt6Svg-devel >= 5
-BuildRequires:	Qt6Widgets-devel >= 5
+BuildRequires:	Qt6Core-devel
+BuildRequires:	Qt6Gui-devel
+BuildRequires:	Qt6Network-devel
+BuildRequires:	Qt6Svg-devel
+BuildRequires:	Qt6Widgets-devel
+BuildRequires:	Qt6Xml-devel
 BuildRequires:	alsa-lib-devel
 BuildRequires:	cmake >= 2.8.12
 BuildRequires:	curl-devel
@@ -79,6 +82,7 @@ Pliki nagłówkowe OBS Studio.
 %prep
 %setup -q
 %patch0 -p1
+%patch1 -p1
 
 %build
 install -d build
@@ -106,6 +110,9 @@ export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 	-DCMAKE_SKIP_RPATH=1 \
 	-DOBS_VERSION_OVERRIDE=%{version} \
 	-DENABLE_AJA=OFF \
+%ifarch x32
+	-DENABLE_SCRIPTING_LUA=OFF \
+%endif
 	-DBUILD_BROWSER=OFF
 
 %{__make}

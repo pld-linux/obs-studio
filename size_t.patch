@@ -1,0 +1,39 @@
+--- obs-studio-29.1.3/libobs/obs.c~	2023-06-19 00:05:22.000000000 +0200
++++ obs-studio-29.1.3/libobs/obs.c	2023-11-05 00:28:11.859696298 +0100
+@@ -873,7 +873,11 @@
+ 		obs->video.mixes.array[i] = NULL;
+ 	}
+ 	if (num_views > 0)
++#ifdef __ILP32__
++		blog(LOG_WARNING, "Number of remaining views: %d", num_views);
++#else
+ 		blog(LOG_WARNING, "Number of remaining views: %ld", num_views);
++#endif
+ 	pthread_mutex_unlock(&obs->video.mixes_mutex);
+ 
+ 	pthread_mutex_destroy(&obs->video.mixes_mutex);
+--- obs-studio-29.1.3/libobs-opengl/gl-egl-common.c~	2023-06-19 00:05:22.000000000 +0200
++++ obs-studio-29.1.3/libobs-opengl/gl-egl-common.c	2023-11-05 00:30:13.543492738 +0100
+@@ -373,7 +373,7 @@
+ 		return false;
+ 	}
+ 	if (!query_dmabuf_modifiers(egl_display, drm_format, modifiers,
+-				    n_modifiers)) {
++				    (EGLuint64KHR *)n_modifiers)) {
+ 		*n_modifiers = 0;
+ 		*modifiers = NULL;
+ 		return false;
+--- obs-studio-29.1.3/plugins/linux-v4l2/v4l2-input.c~	2023-06-19 00:05:22.000000000 +0200
++++ obs-studio-29.1.3/plugins/linux-v4l2/v4l2-input.c	2023-11-05 00:32:37.108931868 +0100
+@@ -259,7 +259,11 @@
+ 		}
+ 
+ 		blog(LOG_DEBUG,
++#ifdef __ILP32__
++		     "%s: ts: %06lld buf id #%d, flags 0x%08X, seq #%d, len %d, used %d",
++#else
+ 		     "%s: ts: %06ld buf id #%d, flags 0x%08X, seq #%d, len %d, used %d",
++#endif
+ 		     data->device_id, buf.timestamp.tv_usec, buf.index,
+ 		     buf.flags, buf.sequence, buf.length, buf.bytesused);
+ 
