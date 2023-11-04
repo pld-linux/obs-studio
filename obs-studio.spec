@@ -1,26 +1,22 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	27.2.4
-Release:	6
+Version:	29.1.3
+Release:	1
 License:	GPL v2+
 %define		obs_vst_gitref	8ad3f64e702ac4f1799b209a511620eb1d096a01
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	a79f8bf28ab9995e333fc1ac0bcfa708
-Source1:	https://github.com/obsproject/obs-vst/archive/%{obs_vst_gitref}/obs-vst-20220206.tar.gz
-# Source1-md5:	7554389796e176c6bc73d453cf883703
-Patch0:		mbedtls3-compatibility.patch
-Patch1:		Remove_encrypted_RTMP_support.patch
+# Source0-md5:	5597636f9c66342566f47d68aa4c6693
+Patch0:		disable-missing-plugins.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
-BuildRequires:	Qt5Core-devel >= 5
-BuildRequires:	Qt5Gui-devel >= 5
-BuildRequires:	Qt5Svg-devel >= 5
-BuildRequires:	Qt5Widgets-devel >= 5
-BuildRequires:	Qt5X11Extras-devel >= 5
+BuildRequires:	Qt6Core-devel >= 5
+BuildRequires:	Qt6Gui-devel >= 5
+BuildRequires:	Qt6Svg-devel >= 5
+BuildRequires:	Qt6Widgets-devel >= 5
 BuildRequires:	alsa-lib-devel
 BuildRequires:	cmake >= 2.8.12
 BuildRequires:	curl-devel
@@ -46,6 +42,7 @@ BuildRequires:	pulseaudio-devel
 BuildRequires:	python3-devel >= 1:3.2
 BuildRequires:	qt5-build >= 5
 BuildRequires:	qt5-qmake >= 5
+BuildRequires:	rpmbuild(macros) >= 1.583
 BuildRequires:	speexdsp-devel
 BuildRequires:	swig-python >= 2
 BuildRequires:	udev-devel
@@ -55,6 +52,9 @@ BuildRequires:	zlib-devel
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %define		_noautoprovfiles	%{_libdir}/obs-plugins
+
+# symbols from libm confuse the checker
+%define		skip_post_check_so	libobs.so.*
 
 %description
 OBS Studio is software designed for capturing, compositing, encoding,
@@ -77,11 +77,8 @@ Header files for OBS Studio.
 Pliki nagłówkowe OBS Studio.
 
 %prep
-%setup -q -a1
+%setup -q
 %patch0 -p1
-%patch1 -p1
-%{__mv} obs-vst-%{obs_vst_gitref} obs-vst
-%{__mv} obs-vst plugins
 
 %build
 install -d build
@@ -89,8 +86,26 @@ cd build
 
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 %cmake .. \
+	-DCMAKE_INSTALL_BINDIR:PATH=bin \
+	-DCMAKE_INSTALL_SBINDIR:PATH=sbin \
+	-DCMAKE_INSTALL_LIBEXECDIR:PATH=libexec \
+	-DCMAKE_INSTALL_SYSCONFDIR:PATH=/etc \
+	-DCMAKE_INSTALL_SHAREDSTATEDIRPATH:PATH=/var/lib \
+	-DCMAKE_INSTALL_LOCALSTATEDIRPATH:PATH=/var \
+	-DCMAKE_INSTALL_INCLUDEDIR:PATH=include \
+	-DCMAKE_INSTALL_DATAROOTDIR:PATH=share \
+	-DCMAKE_INSTALL_DATADIR:PATH=share \
+	-DCMAKE_INSTALL_INFODIR:PATH=share/info \
+	-DCMAKE_INSTALL_LOCALEDIR:PATH=share/locale \
+	-DCMAKE_INSTALL_MANDIR:PATH=share/man \
+	-DCMAKE_INSTALL_DOCDIR:PATH=share/doc \
+	-DSYSCONF_INSTALL_DIR:PATH=/etc \
+	-DCMAKE_INSTALL_LIBDIR:PATH=%{_lib} \
+	-DCMAKE_BUILD_TYPE=RelWithDebInfo \
 	-DUNIX_STRUCTURE=1 \
+	-DCMAKE_SKIP_RPATH=1 \
 	-DOBS_VERSION_OVERRIDE=%{version} \
+	-DENABLE_AJA=OFF \
 	-DBUILD_BROWSER=OFF
 
 %{__make}
@@ -123,7 +138,8 @@ for f in $reldatadir/obs/obs-studio/locale/??*-??*.ini $reldatadir/obs/obs-plugi
 done > "$builddir/%{name}.lang"
 
 # dir guard
-%{__rm} $RPM_BUILD_ROOT%{_datadir}/obs/obs-plugins/{decklink-captions,decklink-ouput-ui}/.keepme
+%{__rm} $RPM_BUILD_ROOT%{_datadir}/obs/obs-plugins/{decklink-captions,decklink-output-ui}/.keepme
+%{__rm} $RPM_BUILD_ROOT%{_datadir}/obs/obs-plugins/linux-pipewire/.gitkeep
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -136,28 +152,28 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS README.rst
 %attr(755,root,root) %{_bindir}/obs
 %attr(755,root,root) %{_bindir}/obs-ffmpeg-mux
-%attr(755,root,root) %{_libdir}/libobs-frontend-api.so.*.*
+%attr(755,root,root) %{_libdir}/libobs-frontend-api.so.29
 %attr(755,root,root) %ghost %{_libdir}/libobs-frontend-api.so.0
-%attr(755,root,root) %{_libdir}/libobs-opengl.so.*.*
-%attr(755,root,root) %ghost %{_libdir}/libobs-opengl.so.0
-%attr(755,root,root) %{_libdir}/libobs.so.0
-%attr(755,root,root) %{_libdir}/libobsglad.so.0
-%attr(755,root,root) %{_libdir}/libobs-scripting.so
+%attr(755,root,root) %{_libdir}/libobs-opengl.so.29
+%attr(755,root,root) %ghost %{_libdir}/libobs-opengl.so.1
+%attr(755,root,root) %{_libdir}/libobs.so.29
+%attr(755,root,root) %ghost %{_libdir}/libobs.so.0
+%attr(755,root,root) %{_libdir}/libobs-scripting.so.29
+%attr(755,root,root) %ghost %{_libdir}/libobs-scripting.so.1
 
 %dir %{_libdir}/obs-plugins
 %attr(755,root,root) %{_libdir}/obs-plugins/decklink-captions.so
-%attr(755,root,root) %{_libdir}/obs-plugins/decklink-ouput-ui.so
+%attr(755,root,root) %{_libdir}/obs-plugins/decklink-output-ui.so
+%attr(755,root,root) %{_libdir}/obs-plugins/decklink.so
 %attr(755,root,root) %{_libdir}/obs-plugins/frontend-tools.so
 %attr(755,root,root) %{_libdir}/obs-plugins/image-source.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-alsa.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-capture.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-decklink.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-jack.so
+%attr(755,root,root) %{_libdir}/obs-plugins/linux-pipewire.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-pulseaudio.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-v4l2.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-ffmpeg.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-filters.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-libfdk.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
@@ -181,6 +197,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/obs/libobs
 %dir %{_datadir}/obs/obs-plugins
 %dir %{_datadir}/obs/obs-studio
+%{_datadir}/obs/obs-studio/OBSPublicRSAKey.pem
 %{_datadir}/obs/obs-studio/authors
 %{_datadir}/obs/obs-studio/images
 %{_datadir}/obs/obs-studio/license
@@ -188,7 +205,8 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/obs/obs-studio/themes
 %{_datadir}/obs/obs-studio/locale.ini
 
-%dir %{_datadir}/obs/obs-plugins/decklink-ouput-ui
+%dir %{_datadir}/obs/obs-plugins/decklink
+%dir %{_datadir}/obs/obs-plugins/decklink/locale
 
 %dir %{_datadir}/obs/obs-plugins/frontend-tools
 %dir %{_datadir}/obs/obs-plugins/frontend-tools/locale
@@ -206,11 +224,8 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_datadir}/obs/obs-plugins/linux-capture
 %dir %{_datadir}/obs/obs-plugins/linux-capture/locale
 
-%dir %{_datadir}/obs/obs-plugins/linux-decklink
-%dir %{_datadir}/obs/obs-plugins/linux-decklink/locale
-
-%dir %{_datadir}/obs/obs-plugins/linux-jack
-%dir %{_datadir}/obs/obs-plugins/linux-jack/locale
+%dir %{_datadir}/obs/obs-plugins/linux-pipewire
+%dir %{_datadir}/obs/obs-plugins/linux-pipewire/locale
 
 %dir %{_datadir}/obs/obs-plugins/linux-pulseaudio
 %dir %{_datadir}/obs/obs-plugins/linux-pulseaudio/locale
@@ -225,9 +240,6 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/obs/obs-plugins/obs-filters/*.effect
 %{_datadir}/obs/obs-plugins/obs-filters/LUTs
 %dir %{_datadir}/obs/obs-plugins/obs-filters/locale
-
-%dir %{_datadir}/obs/obs-plugins/obs-libfdk
-%dir %{_datadir}/obs/obs-plugins/obs-libfdk/locale
 
 %dir %{_datadir}/obs/obs-plugins/obs-outputs
 %dir %{_datadir}/obs/obs-plugins/obs-outputs/locale
@@ -245,6 +257,8 @@ rm -rf $RPM_BUILD_ROOT
 
 %dir %{_datadir}/obs/obs-plugins/rtmp-services
 %{_datadir}/obs/obs-plugins/rtmp-services/*.json
+%dir %{_datadir}/obs/obs-plugins/rtmp-services/schema
+%{_datadir}/obs/obs-plugins/rtmp-services/schema/*.json
 %dir %{_datadir}/obs/obs-plugins/rtmp-services/locale
 
 %dir %{_datadir}/obs/obs-plugins/text-freetype2
@@ -259,7 +273,8 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/libobs.so
 %attr(755,root,root) %{_libdir}/libobs-frontend-api.so
 %attr(755,root,root) %{_libdir}/libobs-opengl.so
-%attr(755,root,root) %{_libdir}/libobsglad.so
+%attr(755,root,root) %{_libdir}/libobs-scripting.so
 %{_includedir}/obs
 %{_pkgconfigdir}/libobs.pc
-%{_libdir}/cmake/LibObs
+%{_libdir}/cmake/libobs
+%{_libdir}/cmake/obs-frontend-api
