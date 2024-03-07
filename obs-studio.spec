@@ -1,3 +1,8 @@
+# TODO: AJA (BR: libajantv2)
+#
+# Conditional build:
+%bcond_with	qt5	# Qt 5 instead of Qt 6
+
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
@@ -15,44 +20,64 @@ Patch2:		x32.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
-BuildRequires:	Qt6Core-devel
-BuildRequires:	Qt6Gui-devel
-BuildRequires:	Qt6Network-devel
-BuildRequires:	Qt6Svg-devel
-BuildRequires:	Qt6Widgets-devel
-BuildRequires:	Qt6Xml-devel
 BuildRequires:	alsa-lib-devel
-BuildRequires:	cmake >= 2.8.12
+BuildRequires:	cmake >= 3.16
 BuildRequires:	curl-devel
 BuildRequires:	dbus-devel
-BuildRequires:	fdk-aac-devel
 # avcodec avfilter avdevice avutil swscale avformat swresample
 BuildRequires:	ffmpeg-devel
 BuildRequires:	fontconfig-devel
 BuildRequires:	freetype-devel >= 2
+BuildRequires:	glib2-devel >= 2.0
 BuildRequires:	jack-audio-connection-kit-devel
 BuildRequires:	jansson-devel >= 2.5
+BuildRequires:	libdrm-devel
+BuildRequires:	librist-devel
+BuildRequires:	libstdc++-devel >= 6:4.7
 BuildRequires:	libv4l-devel
+BuildRequires:	libva-devel
+BuildRequires:	libx264-devel
+# xcb xcb-composite xcb-randr xcb-shm xcb-xfixes xcb-xinerama
 BuildRequires:	libxcb-devel
 %ifnarch x32
 BuildRequires:	luajit-devel
 %endif
-BuildRequires:	libstdc++-devel >= 6:4.7
-BuildRequires:	libx264-devel
 BuildRequires:	mbedtls-devel
-BuildRequires:	pipewire-devel
+BuildRequires:	pciutils-devel
+BuildRequires:	pipewire-devel >= 0.3.33
 BuildRequires:	pkgconfig
 BuildRequires:	pulseaudio-devel
 BuildRequires:	python3-devel >= 1:3.2
-BuildRequires:	qt5-build >= 5
-BuildRequires:	qt5-qmake >= 5
-BuildRequires:	rpmbuild(macros) >= 1.583
+BuildRequires:	rpmbuild(macros) >= 1.605
 BuildRequires:	speexdsp-devel
+BuildRequires:	srt-devel
 BuildRequires:	swig-python >= 2
 BuildRequires:	udev-devel
 BuildRequires:	vlc-devel
+# wayland-client
+BuildRequires:	wayland-devel
+BuildRequires:	wayland-egl-devel
 BuildRequires:	xorg-lib-libX11-devel
 BuildRequires:	zlib-devel
+%if %{with qt5}
+BuildRequires:	Qt5Core-devel >= 5
+BuildRequires:	Qt5Gui-devel >= 5
+BuildRequires:	Qt5Network-devel >= 5
+BuildRequires:	Qt5Svg-devel >= 5
+BuildRequires:	Qt5Widgets-devel >= 5
+BuildRequires:	Qt5Xml-devel >= 5
+BuildRequires:	qt5-build >= 5
+BuildRequires:	qt5-qmake >= 5
+%else
+BuildRequires:	Qt6Core-devel >= 6
+BuildRequires:	Qt6Gui-devel >= 6
+BuildRequires:	Qt6Network-devel >= 6
+BuildRequires:	Qt6Svg-devel >= 6
+BuildRequires:	Qt6Widgets-devel >= 6
+BuildRequires:	Qt6Xml-devel >= 6
+BuildRequires:	qt6-build >= 6
+BuildRequires:	qt6-qmake >= 6
+%endif
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %define		_noautoprovfiles	%{_libdir}/obs-plugins
@@ -89,37 +114,25 @@ Pliki nagłówkowe OBS Studio.
 %endif
 
 %build
-install -d build
-cd build
-
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
-%cmake .. \
+%cmake -B build \
 	-DCMAKE_INSTALL_BINDIR:PATH=bin \
-	-DCMAKE_INSTALL_SBINDIR:PATH=sbin \
-	-DCMAKE_INSTALL_LIBEXECDIR:PATH=libexec \
-	-DCMAKE_INSTALL_SYSCONFDIR:PATH=/etc \
-	-DCMAKE_INSTALL_SHAREDSTATEDIRPATH:PATH=/var/lib \
-	-DCMAKE_INSTALL_LOCALSTATEDIRPATH:PATH=/var \
 	-DCMAKE_INSTALL_INCLUDEDIR:PATH=include \
 	-DCMAKE_INSTALL_DATAROOTDIR:PATH=share \
 	-DCMAKE_INSTALL_DATADIR:PATH=share \
-	-DCMAKE_INSTALL_INFODIR:PATH=share/info \
-	-DCMAKE_INSTALL_LOCALEDIR:PATH=share/locale \
-	-DCMAKE_INSTALL_MANDIR:PATH=share/man \
-	-DCMAKE_INSTALL_DOCDIR:PATH=share/doc \
-	-DSYSCONF_INSTALL_DIR:PATH=/etc \
 	-DCMAKE_INSTALL_LIBDIR:PATH=%{_lib} \
-	-DCMAKE_BUILD_TYPE=RelWithDebInfo \
-	-DUNIX_STRUCTURE=1 \
 	-DCMAKE_SKIP_RPATH=1 \
-	-DOBS_VERSION_OVERRIDE=%{version} \
+	-DBUILD_BROWSER=OFF \
+	-DCALM_DEPRECATION=ON \
 	-DENABLE_AJA=OFF \
 %ifarch x32
 	-DENABLE_SCRIPTING_LUA=OFF \
 %endif
-	-DBUILD_BROWSER=OFF
+	-DOBS_VERSION_OVERRIDE=%{version} \
+	-DQT_VERSION=%{?with_qt5:5}%{!?with_qt5:6} \
+	-DUNIX_STRUCTURE=1
 
-%{__make}
+%{__make} -C build
 
 %install
 rm -rf $RPM_BUILD_ROOT
