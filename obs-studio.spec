@@ -1,8 +1,14 @@
 # TODO: AJA (BR: libajantv2)
 #
 # Conditional build:
+%bcond_with	aja	# AJA NTV2 support
+%bcond_without	jack	# JACK support
 %bcond_with	qt5	# Qt 5 instead of Qt 6
 
+%ifnarch %{x8664}
+# plugins/aja/cmake/legacy.cmake: "aja support not enabled (32-bit not supported)."
+%undefine	with_aja
+%endif
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
@@ -29,8 +35,9 @@ BuildRequires:	ffmpeg-devel
 BuildRequires:	fontconfig-devel
 BuildRequires:	freetype-devel >= 2
 BuildRequires:	glib2-devel >= 2.0
-BuildRequires:	jack-audio-connection-kit-devel
+%{?with_jack:BuildRequires:	jack-audio-connection-kit-devel}
 BuildRequires:	jansson-devel >= 2.5
+%{?with_aja:BuildRequires:	libajantv2-devel}
 BuildRequires:	libdrm-devel
 BuildRequires:	librist-devel
 BuildRequires:	libstdc++-devel >= 6:4.7
@@ -124,7 +131,8 @@ export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 	-DCMAKE_SKIP_RPATH=1 \
 	-DBUILD_BROWSER=OFF \
 	-DCALM_DEPRECATION=ON \
-	-DENABLE_AJA=OFF \
+	%{!?with_aja:-DENABLE_AJA=OFF} \
+	%{?with_jack:-DENABLE_JACK=ON} \
 %ifarch x32
 	-DENABLE_SCRIPTING_LUA=OFF \
 %endif
@@ -193,6 +201,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/image-source.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-alsa.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-capture.so
+%if %{with jack}
+%attr(755,root,root) %{_libdir}/obs-plugins/linux-jack.so
+%endif
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-pipewire.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-pulseaudio.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-v4l2.so
