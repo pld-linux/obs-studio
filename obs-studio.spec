@@ -54,6 +54,7 @@ BuildRequires:	libxcb-devel
 BuildRequires:	luajit-devel
 %endif
 BuildRequires:	mbedtls-devel
+BuildRequires:	nv-codec-headers
 BuildRequires:	pciutils-devel
 BuildRequires:	pipewire-devel >= 0.3.33
 BuildRequires:	pkgconfig
