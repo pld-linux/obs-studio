@@ -26,6 +26,8 @@ Patch2:		x32.patch
 Patch3:		sign-compare.patch
 Patch4:		x11-linkage.patch
 Patch5:		luajit-lua52.patch
+Patch6:		no-arch-abi-warning.patch
+Patch7:		format-string.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -126,6 +128,8 @@ Pliki nagłówkowe OBS Studio.
 %patch -P 3 -p1
 %patch -P 4 -p1
 %patch -P 5 -p1
+%patch -P 6 -p1
+%patch -P 7 -p1
 
 %build
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
@@ -218,7 +222,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-filters.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-nvenc.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
+%ifarch %{x8664} x32
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-qsv11.so
+%endif
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-x264.so

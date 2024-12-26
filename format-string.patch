@@ -1,0 +1,153 @@
+--- obs-studio-31.0.0/libobs/obs-output.c.orig	2024-12-26 23:35:00.153332094 +0100
++++ obs-studio-31.0.0/libobs/obs-output.c	2024-12-26 23:36:56.276665465 +0100
+@@ -1494,7 +1494,11 @@
+ 
+ 	struct caption_track_data *ctrack = output->caption_tracks[out->track_idx];
+ 	if (!ctrack) {
++#if defined(__ILP32__)
++		blog(LOG_DEBUG, "Caption track for index: %u has not been initialized", out->track_idx);
++#else
+ 		blog(LOG_DEBUG, "Caption track for index: %lu has not been initialized", out->track_idx);
++#endif
+ 		return false;
+ 	}
+ 
+@@ -1702,12 +1706,20 @@
+ 				}
+ 			}
+ 			if (found_ept == false) {
++#if defined(__ILP32__)
++				blog(LOG_DEBUG, "%s: Track %u encoder packet timing for PTS%" PRId64 " not found.",
++#else
+ 				blog(LOG_DEBUG, "%s: Track %lu encoder packet timing for PTS%" PRId64 " not found.",
++#endif
+ 				     __FUNCTION__, out.track_idx, out.pts);
+ 			}
+ 		} else {
+ 			// encoder_packet_times should not be empty; log if so.
++#if defined(__ILP32__)
++			blog(LOG_DEBUG, "%s: Track %u encoder packet timing array empty.", __FUNCTION__,
++#else
+ 			blog(LOG_DEBUG, "%s: Track %lu encoder packet timing array empty.", __FUNCTION__,
++#endif
+ 			     out.track_idx);
+ 		}
+ 	}
+--- obs-studio-31.0.0/plugins/obs-nvenc/nvenc.c.orig	2024-12-26 23:55:28.883332170 +0100
++++ obs-studio-31.0.0/plugins/obs-nvenc/nvenc.c	2024-12-26 23:59:49.099998914 +0100
+@@ -378,9 +378,17 @@
+ 	if (vbr)
+ 		dstr_catf(&log, "\tmax_bitrate:  %d\n", max_bitrate);
+ 	if (cqp)
++#if defined(__ILP32__)
++		dstr_catf(&log, "\tcqp:          %lld\n", enc->props.cqp);
++#else	
+ 		dstr_catf(&log, "\tcqp:          %ld\n", enc->props.cqp);
++#endif
+ 	if (cqvbr) {
++#if defined(__ILP32__)
++		dstr_catf(&log, "\tcq:           %lld\n", enc->props.target_quality);
++#else	
+ 		dstr_catf(&log, "\tcq:           %ld\n", enc->props.target_quality);
++#endif
+ 	}
+ 
+ 	dstr_catf(&log, "\tkeyint:       %d\n", gop_size);
+@@ -390,13 +398,22 @@
+ 	dstr_catf(&log, "\tprofile:      %s\n", enc->props.profile);
+ 	dstr_catf(&log, "\twidth:        %d\n", enc->cx);
+ 	dstr_catf(&log, "\theight:       %d\n", enc->cy);
++#if defined(__ILP32__)
++	dstr_catf(&log, "\tb-frames:     %lld\n", enc->props.bf);
++	dstr_catf(&log, "\tb-ref-mode:   %lld\n", enc->props.bframe_ref_mode);
++#else	
+ 	dstr_catf(&log, "\tb-frames:     %ld\n", enc->props.bf);
+ 	dstr_catf(&log, "\tb-ref-mode:   %ld\n", enc->props.bframe_ref_mode);
++#endif
+ 	dstr_catf(&log, "\tlookahead:    %s (%d frames)\n", lookahead ? "true" : "false", rc_lookahead);
+ 	dstr_catf(&log, "\taq:           %s\n", enc->props.adaptive_quantization ? "true" : "false");
+ 
+ 	if (enc->props.split_encode) {
++#if defined(__ILP32__)
++		dstr_catf(&log, "\tsplit encode: %lld\n", enc->props.split_encode);
++#else	
+ 		dstr_catf(&log, "\tsplit encode: %ld\n", enc->props.split_encode);
++#endif
+ 	}
+ 	if (enc->props.opts.count)
+ 		dstr_catf(&log, "\tuser opts:    %s\n", enc->props.opts_str);
+--- obs-studio-31.0.0/UI/obs-app-theming.cpp.orig	2024-12-27 00:19:42.779999070 +0100
++++ obs-studio-31.0.0/UI/obs-app-theming.cpp	2024-12-27 00:24:51.099999085 +0100
+@@ -555,7 +555,11 @@
+ 
+ 	QStringList args = var.value.toStringList();
+ 	if (args.length() != 3) {
++#if defined(__ILP32__)
++		blog(LOG_ERROR, "calc() had invalid number of arguments: %d (%s)", args.length(),
++#else
+ 		blog(LOG_ERROR, "calc() had invalid number of arguments: %lld (%s)", args.length(),
++#endif
+ 		     QT_TO_UTF8(args.join(", ")));
+ 		return "'Invalid expression'";
+ 	}
+--- obs-studio-31.0.0/shared/bpm/bpm.c.org	2024-12-27 00:27:44.626665761 +0100
++++ obs-studio-31.0.0/shared/bpm/bpm.c	2024-12-27 00:13:58.196665720 +0100
+@@ -17,7 +21,11 @@
+ 			   const struct encoder_packet_time *ept, struct metrics_data *m_track)
+ {
+ 	if (!output || !pkt || !ept || !m_track) {
++#if defined(__ILP32__)
++		blog(LOG_DEBUG, "%s: Null arguments for track %u", __FUNCTION__, pkt->track_idx);
++#else
+ 		blog(LOG_DEBUG, "%s: Null arguments for track %lu", __FUNCTION__, pkt->track_idx);
++#endif
+ 		return false;
+ 	}
+ 
+@@ -118,7 +126,11 @@
+ 	 * with "--verbose" and "--unfiltered_log".
+ 	 */
+ 	blog(LOG_DEBUG,
++#if defined(__ILP32__)
++	     "BPM: %s, trk %u: [CTS|FER-CTS|FERC-FER|PIR-CTS]:[%" PRIu64 " ms|%" PRIu64 " ms|%" PRIu64 " us|%" PRIu64
++#else
+ 	     "BPM: %s, trk %lu: [CTS|FER-CTS|FERC-FER|PIR-CTS]:[%" PRIu64 " ms|%" PRIu64 " ms|%" PRIu64 " us|%" PRIu64
++#endif
+ 	     " ms], [dts|pts]:[%" PRId64 "|%" PRId64 "], S[R:O:D:L],R[I:S:O]:%d:%d:%d:%d:%d:%d:%d",
+ 	     obs_encoder_get_name(pkt->encoder), pkt->track_idx, ept->cts / 1000000, (ept->fer - ept->cts) / 1000000,
+ 	     (ept->ferc - ept->fer) / 1000, (ept->pir - ept->cts) / 1000000, pkt->dts, pkt->pts,
+@@ -323,14 +335,22 @@
+ 	bool av1 = false;
+ 
+ 	if (!m_track) {
++#if defined(__ILP32__)
++		blog(LOG_DEBUG, "Metrics track for index: %u had not be initialized", out->track_idx);
++#else
+ 		blog(LOG_DEBUG, "Metrics track for index: %lu had not be initialized", out->track_idx);
++#endif
+ 		return false;
+ 	}
+ 
+ 	// Update the metrics for this track
+ 	if (!update_metrics(output, out, ept, m_track)) {
+ 		// Something went wrong; log it and return
++#if defined(__ILP32__)
++		blog(LOG_DEBUG, "update_metrics() for track index: %u failed", out->track_idx);
++#else
+ 		blog(LOG_DEBUG, "update_metrics() for track index: %lu failed", out->track_idx);
++#endif
+ 		return false;
+ 	}
+ 
+@@ -569,7 +589,11 @@
+ 	if (pkt->type == OBS_ENCODER_VIDEO && pkt->keyframe) {
+ 		/* Video packet must have pkt_timing supplied for BPM */
+ 		if (!pkt_time) {
++#if defined(__ILP32__)
++			blog(LOG_DEBUG, "%s: Packet timing missing for track %d, PTS %" PRId64, __FUNCTION__,
++#else
+ 			blog(LOG_DEBUG, "%s: Packet timing missing for track %ld, PTS %" PRId64, __FUNCTION__,
++#endif
+ 			     pkt->track_idx, pkt->pts);
+ 			return;
+ 		}

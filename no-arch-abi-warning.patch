@@ -1,0 +1,12 @@
+--- obs-studio-31.0.0/cmake/linux/compilerconfig.cmake~	2024-12-07 00:21:55.000000000 +0100
++++ obs-studio-31.0.0/cmake/linux/compilerconfig.cmake	2024-12-27 00:42:07.449999208 +0100
+@@ -60,6 +60,9 @@
+ endif()
+ 
+ if(CMAKE_CXX_COMPILER_ID STREQUAL GNU)
++  # Disable warning for https://github.com/WarmUpTill/SceneSwitcher/issues/1091
++  add_compile_options(-Wno-error=psabi)
++
+   # * Disable false-positive warning in GCC 12.1.0 and later
+   # * https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105562
+   if(CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 12.1.0)
