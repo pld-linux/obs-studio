@@ -4,6 +4,7 @@
 %bcond_with	aja	# AJA NTV2 support
 %bcond_without	jack	# JACK support
 %bcond_with	qt5	# Qt 5 instead of Qt 6
+%bcond_with	webrtc	# Build WebRTC output plugin (R: LibDataChannel)
 
 %ifnarch %{x8664}
 # plugins/aja/cmake/legacy.cmake: "aja support not enabled (32-bit not supported)."
@@ -12,17 +13,19 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	29.1.3
-Release:	3
+Version:	31.0.0
+Release:	1
 License:	GPL v2+
-%define		obs_vst_gitref	8ad3f64e702ac4f1799b209a511620eb1d096a01
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/jp9000/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	5597636f9c66342566f47d68aa4c6693
+# Source0-md5:	7dd7edb0c4e159b1c78c5ce24a3d746b
 Patch0:		disable-missing-plugins.patch
 Patch1:		size_t.patch
 Patch2:		x32.patch
+Patch3:		sign-compare.patch
+Patch4:		x11-linkage.patch
+Patch5:		luajit-lua52.patch
 URL:		https://obsproject.com/
 BuildRequires:	ImageMagick-devel
 BuildRequires:	OpenGL-GLX-devel
@@ -43,6 +46,7 @@ BuildRequires:	librist-devel
 BuildRequires:	libstdc++-devel >= 6:4.7
 BuildRequires:	libv4l-devel
 BuildRequires:	libva-devel
+BuildRequires:	libvpl-devel
 BuildRequires:	libx264-devel
 # xcb xcb-composite xcb-randr xcb-shm xcb-xfixes xcb-xinerama
 BuildRequires:	libxcb-devel
@@ -60,6 +64,7 @@ BuildRequires:	speexdsp-devel
 BuildRequires:	srt-devel
 BuildRequires:	swig-python >= 2
 BuildRequires:	udev-devel
+BuildRequires:	uthash-devel
 BuildRequires:	vlc-devel
 # wayland-client
 BuildRequires:	wayland-devel
@@ -114,11 +119,12 @@ Pliki nagłówkowe OBS Studio.
 
 %prep
 %setup -q
-%patch0 -p1
-%patch1 -p1
-%ifarch x32
-%patch2 -p1
-%endif
+%patch -P 0 -p1
+%patch -P 1 -p1
+%patch -P 2 -p1
+%patch -P 3 -p1
+%patch -P 4 -p1
+%patch -P 5 -p1
 
 %build
 export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
@@ -136,6 +142,7 @@ export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 %ifarch x32
 	-DENABLE_SCRIPTING_LUA=OFF \
 %endif
+	%{!?with_webrtc:-DENABLE_WEBRTC=OFF} \
 	-DOBS_VERSION_OVERRIDE=%{version} \
 	-DQT_VERSION=%{?with_qt5:5}%{!?with_qt5:6} \
 	-DUNIX_STRUCTURE=1
@@ -184,14 +191,13 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS README.rst
 %attr(755,root,root) %{_bindir}/obs
 %attr(755,root,root) %{_bindir}/obs-ffmpeg-mux
-%attr(755,root,root) %{_libdir}/libobs-frontend-api.so.29
+%attr(755,root,root) %{_bindir}/obs-nvenc-test
+%attr(755,root,root) %{_libdir}/libobs-frontend-api.so.30
 %attr(755,root,root) %ghost %{_libdir}/libobs-frontend-api.so.0
-%attr(755,root,root) %{_libdir}/libobs-opengl.so.29
-%attr(755,root,root) %ghost %{_libdir}/libobs-opengl.so.1
-%attr(755,root,root) %{_libdir}/libobs.so.29
+%attr(755,root,root) %{_libdir}/libobs-opengl.so.30
+%attr(755,root,root) %{_libdir}/libobs.so.30
 %attr(755,root,root) %ghost %{_libdir}/libobs.so.0
-%attr(755,root,root) %{_libdir}/libobs-scripting.so.29
-%attr(755,root,root) %ghost %{_libdir}/libobs-scripting.so.1
+%attr(755,root,root) %{_libdir}/libobs-scripting.so.30
 
 %dir %{_libdir}/obs-plugins
 %attr(755,root,root) %{_libdir}/obs-plugins/decklink-captions.so
@@ -209,7 +215,9 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-v4l2.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-ffmpeg.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-filters.so
+%attr(755,root,root) %{_libdir}/obs-plugins/obs-nvenc.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
+%attr(755,root,root) %{_libdir}/obs-plugins/obs-qsv11.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-x264.so
@@ -223,7 +231,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-scripting/_obspython.so
 %attr(755,root,root) %{_libdir}/obs-scripting/obspython.py
 
-%{_datadir}/metainfo/com.obsproject.Studio.appdata.xml
+%{_datadir}/metainfo/com.obsproject.Studio.metainfo.xml
 %{_desktopdir}/com.obsproject.Studio.desktop
 %{_iconsdir}/hicolor/*x*/apps/com.obsproject.Studio.png
 %{_iconsdir}/hicolor/scalable/apps/com.obsproject.Studio.svg
@@ -311,5 +319,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/libobs-scripting.so
 %{_includedir}/obs
 %{_pkgconfigdir}/libobs.pc
+%{_pkgconfigdir}/obs-frontend-api.pc
 %{_libdir}/cmake/libobs
 %{_libdir}/cmake/obs-frontend-api

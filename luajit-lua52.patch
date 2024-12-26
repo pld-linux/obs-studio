@@ -1,0 +1,11 @@
+--- obs-studio-31.0.0/cmake/finders/FindLuajit.cmake~	2024-12-07 00:21:55.000000000 +0100
++++ obs-studio-31.0.0/cmake/finders/FindLuajit.cmake	2024-12-26 12:51:07.859998781 +0100
+@@ -94,7 +94,7 @@
+ 
+ find_library(
+   Luajit_LIBRARY
+-  NAMES luajit-5.1 luajit-51 luajit lua51
++  NAMES luajit-5.2 luajit-5.1 luajit-51 luajit
+   HINTS ${PC_Luajit_LIBRARY_DIRS}
+   PATHS /usr/lib /usr/local/lib
+   DOC "Luajit location"

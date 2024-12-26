@@ -1,8 +1,8 @@
 --- obs-studio-29.1.3/libobs/obs.c~	2023-06-19 00:05:22.000000000 +0200
 +++ obs-studio-29.1.3/libobs/obs.c	2023-11-05 00:28:11.859696298 +0100
 @@ -873,7 +873,11 @@
- 		obs->video.mixes.array[i] = NULL;
  	}
+ 	da_free(obs->video.mixes);
  	if (num_views > 0)
 +#ifdef __ILP32__
 +		blog(LOG_WARNING, "Number of remaining views: %d", num_views);
@@ -15,11 +15,11 @@
 --- obs-studio-29.1.3/libobs-opengl/gl-egl-common.c~	2023-06-19 00:05:22.000000000 +0200
 +++ obs-studio-29.1.3/libobs-opengl/gl-egl-common.c	2023-11-05 00:30:13.543492738 +0100
 @@ -373,7 +373,7 @@
+ 		blog(LOG_ERROR, "Unable to load eglQueryDmaBufModifiersEXT");
  		return false;
  	}
- 	if (!query_dmabuf_modifiers(egl_display, drm_format, modifiers,
--				    n_modifiers)) {
-+				    (EGLuint64KHR *)n_modifiers)) {
+-	if (!query_dmabuf_modifiers(egl_display, drm_format, modifiers, n_modifiers)) {
++	if (!query_dmabuf_modifiers(egl_display, drm_format, modifiers, (EGLuint64KHR *)n_modifiers)) {
  		*n_modifiers = 0;
  		*modifiers = NULL;
  		return false;

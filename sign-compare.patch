@@ -1,0 +1,11 @@
+--- obs-studio-31.0.0/plugins/obs-qsv11/QSV_Encoder_Internal.cpp~	2024-12-07 00:21:55.000000000 +0100
++++ obs-studio-31.0.0/plugins/obs-qsv11/QSV_Encoder_Internal.cpp	2024-12-26 12:22:23.613332074 +0100
+@@ -347,7 +347,7 @@
+ 
+ 	constexpr uint32_t pixelcount_4k = 3840 * 2160;
+ 	/* If size is 4K+, set tile columns per frame to 2. */
+-	if (codec == QSV_CODEC_AV1 && (pParams->nWidth * pParams->nHeight) >= pixelcount_4k) {
++	if (codec == QSV_CODEC_AV1 && static_cast<uint32_t>(pParams->nWidth * pParams->nHeight) >= pixelcount_4k) {
+ 		memset(&m_ExtAv1TileParam, 0, sizeof(m_ExtAv1TileParam));
+ 		m_ExtAv1TileParam.Header.BufferId = MFX_EXTBUFF_AV1_TILE_PARAM;
+ 		m_ExtAv1TileParam.Header.BufferSz = sizeof(m_ExtAv1TileParam);

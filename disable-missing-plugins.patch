@@ -1,99 +1,48 @@
---- obs-studio-29.1.3/plugins/CMakeLists.txt~	2023-06-19 00:05:22.000000000 +0200
-+++ obs-studio-29.1.3/plugins/CMakeLists.txt	2023-11-04 23:10:07.465701088 +0100
-@@ -11,28 +11,6 @@
+--- obs-studio-31.0.0/plugins/CMakeLists.txt.orig	2024-12-07 00:21:55.000000000 +0100
++++ obs-studio-31.0.0/plugins/CMakeLists.txt	2024-12-26 12:09:59.606665425 +0100
+@@ -9,27 +9,6 @@
  
-   set_property(GLOBAL APPEND PROPERTY OBS_FEATURES_ENABLED "Plugin Support")
+ set_property(GLOBAL APPEND PROPERTY OBS_FEATURES_ENABLED "Plugin Support")
  
--  macro(check_obs_browser)
--    if(NOT (OS_WINDOWS AND NOT CMAKE_GENERATOR_PLATFORM MATCHES "(Win32|x64)"))
--      if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-browser/cmake/macos/Info.plist.in")
--        add_subdirectory(obs-browser)
--      elseif(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-browser/CMakeLists.txt")
--        message(FATAL_ERROR "Required submodule 'obs-browser' not available.")
--      endif()
+-macro(check_obs_browser)
+-  if((OS_WINDOWS AND CMAKE_VS_PLATFORM_NAME MATCHES "(Win32|x64)") OR OS_MACOS OR OS_LINUX)
+-    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-browser/CMakeLists.txt")
+-      message(FATAL_ERROR "Required submodule 'obs-browser' not available.")
+-    else()
+-      add_subdirectory(obs-browser)
 -    endif()
--  endmacro()
--
--  macro(check_obs_websocket)
--    if(OS_WINDOWS
--       OR OS_MACOS
--       OR OS_LINUX)
--      if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-websocket/cmake/macos/Info.plist.in")
--        add_subdirectory(obs-websocket)
--      elseif(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-websocket/CMakeLists.txt")
--        message(FATAL_ERROR "Required submodule 'obs-websocket' not available.")
--      endif()
--    endif()
--  endmacro()
--
-   # Add plugins in alphabetical order to retain order in IDE projects
-   add_subdirectory(aja)
-   if(OS_WINDOWS OR OS_MACOS)
-@@ -62,7 +40,6 @@
-     add_subdirectory(mac-videotoolbox)
-     add_subdirectory(mac-virtualcam)
-   endif()
--  check_obs_browser()
-   add_subdirectory(obs-ffmpeg)
-   add_subdirectory(obs-filters)
-   add_subdirectory(obs-outputs)
-@@ -76,7 +53,6 @@
-      OR OS_LINUX)
-     add_subdirectory(obs-vst)
-   endif()
--  check_obs_websocket()
-   add_subdirectory(obs-x264)
-   add_subdirectory(rtmp-services)
-   if(OS_LINUX)
-@@ -101,14 +77,6 @@
-   return()
- endif()
- 
--function(check_obs_browser)
--  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/obs-browser/CMakeLists.txt)
--    add_subdirectory(obs-browser)
 -  else()
--    obs_status(FATAL_ERROR "obs-browser submodule not available.")
+-    add_custom_target(obs-browser)
+-    target_disable(obs-browser)
 -  endif()
--endfunction()
+-endmacro()
 -
- # APPLE/WIN32/UNIX are soft-deprecated: https://discourse.cmake.org/t/platform-id-vs-win32-vs-cmake-system-name/1226/2
- if(OS_WINDOWS)
-   add_subdirectory(coreaudio-encoder)
-@@ -127,7 +95,6 @@
-     obs_status(WARNING "enc-amf plugin not found.")
-   endif()
- 
--  check_obs_browser()
- elseif(OS_MACOS)
-   add_subdirectory(coreaudio-encoder)
-   add_subdirectory(mac-avcapture)
-@@ -140,7 +107,6 @@
-   add_subdirectory(linux-jack)
-   add_subdirectory(obs-vst)
- 
--  check_obs_browser()
- elseif(OS_LINUX)
-   add_subdirectory(linux-capture)
-   add_subdirectory(linux-pulseaudio)
-@@ -153,7 +119,6 @@
-   add_subdirectory(sndio)
-   add_subdirectory(obs-vst)
- 
--  check_obs_browser()
- elseif(OS_FREEBSD)
-   add_subdirectory(linux-capture)
-   add_subdirectory(linux-pipewire)
-@@ -175,12 +140,6 @@
-   obs_status(STATUS "obs-vst plugin not available.")
- endif()
- 
--if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/obs-websocket/CMakeLists.txt)
--  add_subdirectory(obs-websocket)
--else()
--  obs_status(FATAL_ERROR "obs-websocket submodule not available.")
--endif()
+-macro(check_obs_websocket)
+-  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/obs-websocket/CMakeLists.txt")
+-    message(FATAL_ERROR "Required submodule 'obs-websocket' not available.")
+-  else()
+-    add_subdirectory(obs-websocket)
+-  endif()
+-endmacro()
 -
- add_subdirectory(image-source)
- add_subdirectory(obs-x264)
- add_subdirectory(obs-libfdk)
+ # Add plugins in alphabetical order to retain order in IDE projects
+ add_obs_plugin(
+     aja
+@@ -56,8 +35,6 @@
+ add_obs_plugin(mac-virtualcam PLATFORMS MACOS)
+ add_obs_plugin(nv-filters PLATFORMS WINDOWS)
+ 
+-check_obs_browser()
+-
+ add_obs_plugin(obs-ffmpeg)
+ add_obs_plugin(obs-filters)
+ add_obs_plugin(obs-libfdk)
+@@ -77,8 +54,6 @@
+ )
+ add_obs_plugin(obs-webrtc)
+ 
+-check_obs_websocket()
+-
+ add_obs_plugin(obs-x264)
+ add_obs_plugin(oss-audio PLATFORMS FREEBSD OPENBSD)
+ add_obs_plugin(rtmp-services)
