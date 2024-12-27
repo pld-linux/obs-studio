@@ -14,7 +14,7 @@ Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
 Version:	31.0.0
-Release:	1
+Release:	2
 License:	GPL v2+
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
@@ -214,6 +214,8 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-capture.so
 %if %{with jack}
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-jack.so
+%dir %{_datadir}/obs/obs-plugins/linux-jack
+%dir %{_datadir}/obs/obs-plugins/linux-jack/locale
 %endif
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-pipewire.so
 %attr(755,root,root) %{_libdir}/obs-plugins/linux-pulseaudio.so
@@ -224,6 +226,8 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
 %ifarch %{x8664} x32
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-qsv11.so
+%dir %{_datadir}/obs/obs-plugins/obs-qsv11
+%dir %{_datadir}/obs/obs-plugins/obs-qsv11/locale
 %endif
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
 %attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
@@ -290,6 +294,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_datadir}/obs/obs-plugins/obs-filters/*.effect
 %{_datadir}/obs/obs-plugins/obs-filters/LUTs
 %dir %{_datadir}/obs/obs-plugins/obs-filters/locale
+
+%dir %{_datadir}/obs/obs-plugins/obs-nvenc
+%dir %{_datadir}/obs/obs-plugins/obs-nvenc/locale
 
 %dir %{_datadir}/obs/obs-plugins/obs-outputs
 %dir %{_datadir}/obs/obs-plugins/obs-outputs/locale
