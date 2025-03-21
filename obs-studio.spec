@@ -14,7 +14,7 @@ Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
 Version:	31.0.0
-Release:	4
+Release:	5
 License:	GPL v2+
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
@@ -50,6 +50,7 @@ BuildRequires:	libv4l-devel
 BuildRequires:	libva-devel
 BuildRequires:	libvpl-devel
 BuildRequires:	libx264-devel
+BuildRequires:	nlohmann-json-devel
 # xcb xcb-composite xcb-randr xcb-shm xcb-xfixes xcb-xinerama
 BuildRequires:	libxcb-devel
 %ifnarch x32
