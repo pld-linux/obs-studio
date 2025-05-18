@@ -33,9 +33,9 @@
  			     out.track_idx);
  		}
  	}
---- obs-studio-31.0.0/plugins/obs-nvenc/nvenc.c.orig	2024-12-26 23:55:28.883332170 +0100
-+++ obs-studio-31.0.0/plugins/obs-nvenc/nvenc.c	2024-12-26 23:59:49.099998914 +0100
-@@ -378,9 +378,17 @@
+--- obs-studio-31.0.3/plugins/obs-nvenc/nvenc.c.orig	2025-03-26 21:22:17.000000000 +0100
++++ obs-studio-31.0.3/plugins/obs-nvenc/nvenc.c	2025-05-18 18:48:57.333214433 +0200
+@@ -378,9 +378,17 @@ static bool init_encoder_base(struct nve
  	if (vbr)
  		dstr_catf(&log, "\tmax_bitrate:  %d\n", max_bitrate);
  	if (cqp)
@@ -53,7 +53,7 @@
  	}
  
  	dstr_catf(&log, "\tkeyint:       %d\n", gop_size);
-@@ -390,13 +398,22 @@
+@@ -390,14 +398,23 @@ static bool init_encoder_base(struct nve
  	dstr_catf(&log, "\tprofile:      %s\n", enc->props.profile);
  	dstr_catf(&log, "\twidth:        %d\n", enc->cx);
  	dstr_catf(&log, "\theight:       %d\n", enc->cy);
@@ -64,7 +64,8 @@
  	dstr_catf(&log, "\tb-frames:     %ld\n", enc->props.bf);
  	dstr_catf(&log, "\tb-ref-mode:   %ld\n", enc->props.bframe_ref_mode);
 +#endif
- 	dstr_catf(&log, "\tlookahead:    %s (%d frames)\n", lookahead ? "true" : "false", rc_lookahead);
+ 	dstr_catf(&log, "\tlookahead:    %s (%d frames)\n", lookahead ? "true" : "false",
+ 		  config->rcParams.lookaheadDepth);
  	dstr_catf(&log, "\taq:           %s\n", enc->props.adaptive_quantization ? "true" : "false");
  
  	if (enc->props.split_encode) {
