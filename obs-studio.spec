@@ -1,4 +1,7 @@
-# TODO: AJA (BR: libajantv2)
+# TODO:
+# - AJA (BR: libajantv2)
+# - system librnnoise
+# - disabled modules: aja aja-output-ui obs-libfdk obs-webrtc
 #
 # Conditional build:
 %bcond_with	aja	# AJA NTV2 support
@@ -13,13 +16,13 @@
 Summary:	OBS Studio - live streaming and screen recording software
 Summary(pl.UTF-8):	OBS Studio - oprogramowanie do przesyłania strumieni na żywo i nagrywania ekranu
 Name:		obs-studio
-Version:	31.0.3
+Version:	32.1.2
 Release:	1
 License:	GPL v2+
 Group:		X11/Applications/Multimedia
 #Source0Download: https://github.com/obsproject/obs-studio/releases
 Source0:	https://github.com/obsproject/obs-studio/archive/%{version}/%{name}-%{version}.tar.gz
-# Source0-md5:	316390336557c44247230a65b4e45a2f
+# Source0-md5:	48714ec4e527e9044c6653e1996d8884
 Patch0:		disable-missing-plugins.patch
 Patch1:		size_t.patch
 Patch2:		x32.patch
@@ -29,26 +32,29 @@ Patch5:		luajit-lua52.patch
 Patch6:		no-arch-abi-warning.patch
 Patch7:		format-string.patch
 URL:		https://obsproject.com/
+BuildRequires:	EGL-devel
 BuildRequires:	ImageMagick-devel
+BuildRequires:	OpenGL-devel
 BuildRequires:	OpenGL-GLX-devel
 BuildRequires:	alsa-lib-devel
 BuildRequires:	cmake >= 3.16
 BuildRequires:	curl-devel
 BuildRequires:	dbus-devel
 # avcodec avfilter avdevice avutil swscale avformat swresample
-BuildRequires:	ffmpeg-devel
+BuildRequires:	ffmpeg-devel >= 6.1
 BuildRequires:	fontconfig-devel
 BuildRequires:	freetype-devel >= 2
-BuildRequires:	glib2-devel >= 2.0
+BuildRequires:	glib2-devel >= 1:2.76
 %{?with_jack:BuildRequires:	jack-audio-connection-kit-devel}
 BuildRequires:	jansson-devel >= 2.5
 %{?with_aja:BuildRequires:	libajantv2-devel}
 BuildRequires:	libdrm-devel
 BuildRequires:	librist-devel
 BuildRequires:	libstdc++-devel >= 6:4.7
+BuildRequires:	libuuid-devel
 BuildRequires:	libv4l-devel
 BuildRequires:	libva-devel
-BuildRequires:	libvpl-devel
+BuildRequires:	libvpl-devel >= 2.9
 BuildRequires:	libx264-devel
 BuildRequires:	nlohmann-json-devel
 # xcb xcb-composite xcb-randr xcb-shm xcb-xfixes xcb-xinerama
@@ -57,16 +63,17 @@ BuildRequires:	libxcb-devel
 BuildRequires:	luajit-devel
 %endif
 BuildRequires:	mbedtls-devel
-BuildRequires:	nv-codec-headers
+BuildRequires:	nv-codec-headers >= 12
 BuildRequires:	pciutils-devel
 BuildRequires:	pipewire-devel >= 0.3.33
 BuildRequires:	pkgconfig
 BuildRequires:	pulseaudio-devel
-BuildRequires:	python3-devel >= 1:3.2
+BuildRequires:	python3-devel >= 1:3.8
 BuildRequires:	rpmbuild(macros) >= 1.605
+BuildRequires:	simde-devel
 BuildRequires:	speexdsp-devel
 BuildRequires:	srt-devel
-BuildRequires:	swig-python >= 2
+BuildRequires:	swig-python >= 4
 BuildRequires:	udev-devel
 BuildRequires:	uthash-devel
 BuildRequires:	vlc-devel
@@ -74,6 +81,7 @@ BuildRequires:	vlc-devel
 BuildRequires:	wayland-devel
 BuildRequires:	wayland-egl-devel
 BuildRequires:	xorg-lib-libX11-devel
+BuildRequires:	xorg-lib-libxkbcommon-devel
 BuildRequires:	zlib-devel
 %if %{with qt5}
 BuildRequires:	Qt5Core-devel >= 5
@@ -94,6 +102,7 @@ BuildRequires:	Qt6Xml-devel >= 6
 BuildRequires:	qt6-build >= 6
 BuildRequires:	qt6-qmake >= 6
 %endif
+Requires:	glib2 >= 1:2.76
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %define		_noautoprovfiles	%{_libdir}/obs-plugins
@@ -165,7 +174,7 @@ builddir="$(pwd)"
 
 cd $RPM_BUILD_ROOT
 reldatadir="$(echo %{_datadir} | sed -e 's,^/,,')"
-for f in $reldatadir/obs/obs-studio/locale/??*-??*.ini $reldatadir/obs/obs-plugins/*/locale/??*-??*.ini ; do
+for f in $reldatadir/obs/obs-studio/locale/??*.ini $reldatadir/obs/obs-plugins/*/locale/??*.ini ; do
 	locale="$(basename "$f" .ini | tr - _)"
 	case "$locale" in
 	  en_US)
@@ -198,49 +207,49 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root) %{_bindir}/obs
 %attr(755,root,root) %{_bindir}/obs-ffmpeg-mux
 %attr(755,root,root) %{_bindir}/obs-nvenc-test
-%attr(755,root,root) %{_libdir}/libobs-frontend-api.so.30
-%attr(755,root,root) %ghost %{_libdir}/libobs-frontend-api.so.0
-%attr(755,root,root) %{_libdir}/libobs-opengl.so.30
-%attr(755,root,root) %{_libdir}/libobs.so.30
-%attr(755,root,root) %ghost %{_libdir}/libobs.so.0
-%attr(755,root,root) %{_libdir}/libobs-scripting.so.30
+%{_libdir}/libobs-frontend-api.so.30
+%ghost %{_libdir}/libobs-frontend-api.so.0
+%{_libdir}/libobs-opengl.so.30
+%{_libdir}/libobs.so.30
+%ghost %{_libdir}/libobs.so.0
+%{_libdir}/libobs-scripting.so.30
 
 %dir %{_libdir}/obs-plugins
-%attr(755,root,root) %{_libdir}/obs-plugins/decklink-captions.so
-%attr(755,root,root) %{_libdir}/obs-plugins/decklink-output-ui.so
-%attr(755,root,root) %{_libdir}/obs-plugins/decklink.so
-%attr(755,root,root) %{_libdir}/obs-plugins/frontend-tools.so
-%attr(755,root,root) %{_libdir}/obs-plugins/image-source.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-alsa.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-capture.so
+%{_libdir}/obs-plugins/decklink-captions.so
+%{_libdir}/obs-plugins/decklink-output-ui.so
+%{_libdir}/obs-plugins/decklink.so
+%{_libdir}/obs-plugins/frontend-tools.so
+%{_libdir}/obs-plugins/image-source.so
+%{_libdir}/obs-plugins/linux-alsa.so
+%{_libdir}/obs-plugins/linux-capture.so
 %if %{with jack}
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-jack.so
+%{_libdir}/obs-plugins/linux-jack.so
 %dir %{_datadir}/obs/obs-plugins/linux-jack
 %dir %{_datadir}/obs/obs-plugins/linux-jack/locale
 %endif
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-pipewire.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-pulseaudio.so
-%attr(755,root,root) %{_libdir}/obs-plugins/linux-v4l2.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-ffmpeg.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-filters.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-nvenc.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-outputs.so
+%{_libdir}/obs-plugins/linux-pipewire.so
+%{_libdir}/obs-plugins/linux-pulseaudio.so
+%{_libdir}/obs-plugins/linux-v4l2.so
+%{_libdir}/obs-plugins/obs-ffmpeg.so
+%{_libdir}/obs-plugins/obs-filters.so
+%{_libdir}/obs-plugins/obs-nvenc.so
+%{_libdir}/obs-plugins/obs-outputs.so
 %ifarch %{x8664} x32
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-qsv11.so
+%{_libdir}/obs-plugins/obs-qsv11.so
 %dir %{_datadir}/obs/obs-plugins/obs-qsv11
 %dir %{_datadir}/obs/obs-plugins/obs-qsv11/locale
 %endif
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-transitions.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-vst.so
-%attr(755,root,root) %{_libdir}/obs-plugins/obs-x264.so
-%attr(755,root,root) %{_libdir}/obs-plugins/rtmp-services.so
-%attr(755,root,root) %{_libdir}/obs-plugins/text-freetype2.so
-%attr(755,root,root) %{_libdir}/obs-plugins/vlc-video.so
+%{_libdir}/obs-plugins/obs-transitions.so
+%{_libdir}/obs-plugins/obs-vst.so
+%{_libdir}/obs-plugins/obs-x264.so
+%{_libdir}/obs-plugins/rtmp-services.so
+%{_libdir}/obs-plugins/text-freetype2.so
+%{_libdir}/obs-plugins/vlc-video.so
 %dir %{_libdir}/obs-scripting
 %ifnarch x32
-%attr(755,root,root) %{_libdir}/obs-scripting/obslua.so
+%{_libdir}/obs-scripting/obslua.so
 %endif
-%attr(755,root,root) %{_libdir}/obs-scripting/_obspython.so
+%{_libdir}/obs-scripting/_obspython.so
 %attr(755,root,root) %{_libdir}/obs-scripting/obspython.py
 
 %{_datadir}/metainfo/com.obsproject.Studio.metainfo.xml
@@ -259,6 +268,7 @@ rm -rf $RPM_BUILD_ROOT
 %dir %{_datadir}/obs/obs-studio/locale
 %{_datadir}/obs/obs-studio/themes
 %{_datadir}/obs/obs-studio/locale.ini
+%{_datadir}/obs/obs-studio/striped_line.effect
 
 %dir %{_datadir}/obs/obs-plugins/decklink
 %dir %{_datadir}/obs/obs-plugins/decklink/locale
@@ -328,10 +338,10 @@ rm -rf $RPM_BUILD_ROOT
 
 %files devel
 %defattr(644,root,root,755)
-%attr(755,root,root) %{_libdir}/libobs.so
-%attr(755,root,root) %{_libdir}/libobs-frontend-api.so
-%attr(755,root,root) %{_libdir}/libobs-opengl.so
-%attr(755,root,root) %{_libdir}/libobs-scripting.so
+%{_libdir}/libobs.so
+%{_libdir}/libobs-frontend-api.so
+%{_libdir}/libobs-opengl.so
+%{_libdir}/libobs-scripting.so
 %{_includedir}/obs
 %{_pkgconfigdir}/libobs.pc
 %{_pkgconfigdir}/obs-frontend-api.pc

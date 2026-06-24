@@ -1,31 +1,20 @@
---- obs-studio-31.0.0/libobs-opengl/CMakeLists.txt~	2024-12-07 00:21:55.000000000 +0100
-+++ obs-studio-31.0.0/libobs-opengl/CMakeLists.txt	2024-12-26 12:44:37.833332079 +0100
-@@ -56,6 +56,7 @@
-     "$<$<PLATFORM_ID:Darwin>:$<LINK_LIBRARY:FRAMEWORK,IOSurface.framework>>"
-     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:xcb::xcb>
-     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:X11::x11-xcb>
+--- obs-studio-32.1.2/libobs-opengl/CMakeLists.txt.orig	2026-04-21 21:00:34.000000000 +0200
++++ obs-studio-32.1.2/libobs-opengl/CMakeLists.txt	2026-06-24 21:32:11.294384433 +0200
+@@ -58,6 +58,7 @@ target_link_libraries(
+     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:Libdrm::Libdrm>
+     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:XCB::XCB>
+     $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:X11::XCB>
 +    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:X11::X11>
      $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<BOOL:${ENABLE_WAYLAND}>>:OpenGL::EGL>
-     $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<BOOL:${ENABLE_WAYLAND}>>:Wayland::EGL>
+     $<$<AND:$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>,$<BOOL:${ENABLE_WAYLAND}>>:Wayland::Egl>
  )
---- obs-studio-31.0.0/libobs/CMakeLists.txt~	2024-12-07 00:21:55.000000000 +0100
-+++ obs-studio-31.0.0/libobs/CMakeLists.txt	2024-12-26 12:47:01.733332089 +0100
-@@ -7,6 +7,10 @@
-   return()
- endif()
- 
-+if(OS_LINUX OR OS_FREEBSD OR OS_OPENBSD)
-+  find_package(X11 REQUIRED)
-+endif()
-+
- find_package(Threads REQUIRED)
- 
- find_package(FFmpeg 6.1 REQUIRED avformat avutil swscale swresample OPTIONAL_COMPONENTS avcodec)
-@@ -260,6 +264,7 @@
+--- obs-studio-32.1.2/libobs/CMakeLists.txt.orig	2026-04-21 21:00:34.000000000 +0200
++++ obs-studio-32.1.2/libobs/CMakeLists.txt	2026-06-24 21:34:35.738063612 +0200
+@@ -249,6 +249,7 @@ target_link_libraries(
      jansson::jansson
      Uthash::Uthash
      ZLIB::ZLIB
-+    $<$<PLATFORM_ID:Linux,FreeBSD,OpenBSD>:X11::X11>
-   PUBLIC Threads::Threads
++    glib-2.0
+   PUBLIC SIMDe::SIMDe Threads::Threads
  )
  
