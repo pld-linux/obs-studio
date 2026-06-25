@@ -79,6 +79,15 @@
  		dstr_catf(&log, "\tuser opts:    %s\n", enc->props.opts_str);
 --- obs-studio-32.1.2/shared/bpm/bpm.c.orig	2026-06-24 20:47:06.417087160 +0200
 +++ obs-studio-32.1.2/shared/bpm/bpm.c	2026-06-24 20:47:06.436487394 +0200
+@@ -26,7 +26,7 @@ static bool update_metrics(obs_output_t
+ 	}
+ 
+ 	if (!output || !ept || !m_track) {
+-		blog(LOG_DEBUG, "%s: Null arguments for track %lu", __FUNCTION__, pkt->track_idx);
++		blog(LOG_DEBUG, "%s: Null arguments for track %zu", __FUNCTION__, pkt->track_idx);
+ 		return false;
+ 	}
+ 
 @@ -127,7 +127,11 @@ static bool update_metrics(obs_output_t
  	 * with "--verbose" and "--unfiltered_log".
  	 */
@@ -126,3 +135,60 @@
  			     pkt->track_idx, pkt->pts);
  			return;
  		}
+--- obs-studio-32.1.2/frontend/OBSApp_Themes.cpp.orig	2026-04-21 21:00:34.000000000 +0200
++++ obs-studio-32.1.2/frontend/OBSApp_Themes.cpp	2026-06-25 20:42:13.743732077 +0200
+@@ -592,7 +592,7 @@ static QString EvalMath(const QHash<QStr
+ 	}
+ 
+ 	if (args.length() != 3) {
+-		blog(LOG_ERROR, "Math parse had invalid number of arguments: %lld (%s)", args.length(),
++		blog(LOG_ERROR, "Math parse had invalid number of arguments: %zd (%s)", args.length(),
+ 		     QT_TO_UTF8(args.join(", ")));
+ 		return "'Invalid expression'";
+ 	}
+--- obs-studio-32.1.2/frontend/utility/system-info-posix.cpp.orig	2026-06-25 20:56:10.588584009 +0200
++++ obs-studio-32.1.2/frontend/utility/system-info-posix.cpp	2026-06-25 20:56:13.897730588 +0200
+@@ -6,6 +6,7 @@
+ #include <string>
+ #include <fstream>
+ #include <regex>
++#include <cinttypes>
+ 
+ using namespace std;
+ 
+@@ -372,7 +373,7 @@ void get_drm_cards(std::vector<drm_card_
+ 				if (!file_str) {
+ 					dci.dedicated_vram_total = 0;
+ 				} else {
+-					sscanf(file_str, "%lu", &dci.dedicated_vram_total);
++					sscanf(file_str, "%" SCNu64, &dci.dedicated_vram_total);
+ 					bfree(file_str);
+ 				}
+ 
+@@ -383,7 +384,7 @@ void get_drm_cards(std::vector<drm_card_
+ 				if (!file_str) {
+ 					dci.shared_system_memory_total = 0;
+ 				} else {
+-					sscanf(file_str, "%lu", &dci.shared_system_memory_total);
++					sscanf(file_str, "%" SCNu64, &dci.shared_system_memory_total);
+ 					bfree(file_str);
+ 				}
+ 
+@@ -391,7 +392,7 @@ void get_drm_cards(std::vector<drm_card_
+ 				blog(LOG_DEBUG,
+ 				     "%s: drm_adapter_info: PCI B:D:S:F: %s, device_id:0x%x,"
+ 				     "vendor_id:0x%x, sub_device:0x%x, sub_vendor:0x%x,"
+-				     "vram_total: %lu, sys_memory: %lu",
++				     "vram_total: %" PRIu64 ", sys_memory: %" PRIu64,
+ 				     __FUNCTION__, dci.dbsf.c_str(), dci.device_id, dci.vendor_id, dci.subsystem_device,
+ 				     dci.subsystem_vendor, dci.dedicated_vram_total, dci.shared_system_memory_total);
+ 			} else {
+@@ -468,7 +469,7 @@ std::optional<std::vector<GoLiveApi::Gpu
+ 
+ 	// Discover the set of DRM render-capable GPUs
+ 	get_drm_cards(drm_cards);
+-	blog(LOG_DEBUG, "Number of GPUs detected: %lu", drm_cards.size());
++	blog(LOG_DEBUG, "Number of GPUs detected: %zu", drm_cards.size());
+ 
+ 	// Iterate through drm_cards to get the device and vendor names via libpci
+ 	for (auto card = begin(drm_cards); card != end(drm_cards); ++card) {
