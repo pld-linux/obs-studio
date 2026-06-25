@@ -137,12 +137,15 @@
  		}
 --- obs-studio-32.1.2/frontend/OBSApp_Themes.cpp.orig	2026-04-21 21:00:34.000000000 +0200
 +++ obs-studio-32.1.2/frontend/OBSApp_Themes.cpp	2026-06-25 20:42:13.743732077 +0200
-@@ -592,7 +592,7 @@ static QString EvalMath(const QHash<QStr
+@@ -592,7 +592,11 @@ static QString EvalMath(const QHash<QStr
  	}
  
  	if (args.length() != 3) {
--		blog(LOG_ERROR, "Math parse had invalid number of arguments: %lld (%s)", args.length(),
++#ifdef __LP64__
+ 		blog(LOG_ERROR, "Math parse had invalid number of arguments: %lld (%s)", args.length(),
++#else
 +		blog(LOG_ERROR, "Math parse had invalid number of arguments: %zd (%s)", args.length(),
++#endif
  		     QT_TO_UTF8(args.join(", ")));
  		return "'Invalid expression'";
  	}
