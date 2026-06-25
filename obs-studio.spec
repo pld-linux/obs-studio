@@ -206,7 +206,9 @@ rm -rf $RPM_BUILD_ROOT
 %doc AUTHORS README.rst
 %attr(755,root,root) %{_bindir}/obs
 %attr(755,root,root) %{_bindir}/obs-ffmpeg-mux
+%ifarch %{x8664} x32
 %attr(755,root,root) %{_bindir}/obs-nvenc-test
+%endif
 %{_libdir}/libobs-frontend-api.so.30
 %ghost %{_libdir}/libobs-frontend-api.so.0
 %{_libdir}/libobs-opengl.so.30
@@ -232,7 +234,9 @@ rm -rf $RPM_BUILD_ROOT
 %{_libdir}/obs-plugins/linux-v4l2.so
 %{_libdir}/obs-plugins/obs-ffmpeg.so
 %{_libdir}/obs-plugins/obs-filters.so
+%ifarch %{x8664} x32
 %{_libdir}/obs-plugins/obs-nvenc.so
+%endif
 %{_libdir}/obs-plugins/obs-outputs.so
 %ifarch %{x8664} x32
 %{_libdir}/obs-plugins/obs-qsv11.so
