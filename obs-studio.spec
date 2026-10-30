@@ -152,6 +152,7 @@ export OBS_MULTIARCH_SUFFIX="%(echo "%{_lib}" | sed -e 's/^lib//')"
 	-DCMAKE_SKIP_RPATH=1 \
 	-DBUILD_BROWSER=OFF \
 	-DCALM_DEPRECATION=ON \
+	-DCMAKE_COMPILE_WARNING_AS_ERROR=OFF \
 	%{!?with_aja:-DENABLE_AJA=OFF} \
 	%{?with_jack:-DENABLE_JACK=ON} \
 %ifarch x32
